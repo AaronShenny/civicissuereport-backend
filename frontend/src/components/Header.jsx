@@ -37,7 +37,7 @@ export default function Header() {
 
   return (
     <header className="top-header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-sm)', flex: 1 }}>
         <button
           className="btn btn-ghost btn-icon"
           title="Go Back"

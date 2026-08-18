@@ -64,7 +64,7 @@ export default function SubmitComplaint() {
     if (!formData.district.trim()) return 'District is required.';
     if (!formData.google_maps_url.trim()) return 'Google Maps URL is required.';
     try {
-      new URL(formData.google_maps_url);
+      new URL(formData.google_maps_url.trim());
     } catch {
       return 'Please enter a valid Google Maps URL.';
     }
@@ -75,8 +75,11 @@ export default function SubmitComplaint() {
     e.preventDefault();
     setSubmitError(null);
 
+    console.log('[SubmitComplaint] handleSubmit fired. formData:', formData);
+
     const validationError = validateForm();
     if (validationError) {
+      console.warn('[SubmitComplaint] Validation blocked submission:', validationError);
       setSubmitError(validationError);
       return;
     }
@@ -86,8 +89,10 @@ export default function SubmitComplaint() {
       
       const payload = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        if (value.trim() !== '') {
-          payload.append(key, value.trim());
+        // Convert to string before trimming — category_id is a number from select
+        const strValue = String(value).trim();
+        if (strValue !== '') {
+          payload.append(key, strValue);
         }
       });
       
@@ -99,8 +104,26 @@ export default function SubmitComplaint() {
       setSuccessData(res);
       setStatus('success');
     } catch (err) {
-      setSubmitError(err.data?.detail || err.message || 'An error occurred while submitting.');
-      setStatus('error');
+      console.error('[SubmitComplaint] Submission failed:', err);
+      // Show the most useful error — backend detail, validation errors, or generic message
+      let displayError = 'An error occurred while submitting.';
+      if (err.data) {
+        if (typeof err.data === 'object') {
+          // Could be { google_maps_url: ['...'] } or { detail: '...' } or { attachments: [...] }
+          const parts = [];
+          Object.entries(err.data).forEach(([field, msgs]) => {
+            const msg = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+            parts.push(field === 'detail' ? msg : `${field}: ${msg}`);
+          });
+          displayError = parts.join('\n');
+        } else {
+          displayError = String(err.data);
+        }
+      } else if (err.message) {
+        displayError = err.message;
+      }
+      setSubmitError(displayError);
+      setStatus('idle'); // Reset to idle so form stays usable
     }
   };
 
@@ -251,7 +274,7 @@ export default function SubmitComplaint() {
             Paste the shareable link from Google Maps (e.g. https://maps.app.goo.gl/... or https://www.google.com/maps/...)
           </p>
           <input
-            type="url"
+            type="text"
             className="form-control"
             name="google_maps_url"
             placeholder="https://..."

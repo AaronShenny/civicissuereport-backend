@@ -96,9 +96,6 @@ export default function ComplaintDetail() {
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div className="page-header" style={{ marginBottom: 'var(--sp-md)' }}>
         <div className="page-header-left">
-          <button className="btn btn-ghost btn-sm" style={{ padding: 0, marginBottom: 'var(--sp-sm)' }} onClick={() => navigate(-1)}>
-            &larr; Back
-          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-md)' }}>
             <h2 className="page-title" style={{ margin: 0 }}>Complaint {complaint.complaint_number}</h2>
             <StatusBadge status={complaint.status} />
@@ -297,10 +294,12 @@ export default function ComplaintDetail() {
                     </p>
                   </div>
                 </div>
-                {complaint.status_history.map((sh, idx) => (
-                  <div className="timeline-item" key={sh.id}>
-                    <div className="timeline-line"></div>
-                    <div className="timeline-dot" style={{ background: idx === complaint.status_history.length - 1 ? 'var(--primary)' : 'var(--text-muted)' }}></div>
+                {(() => {
+                  const filteredHistory = complaint.status_history.filter(sh => sh.new_status !== 'submitted');
+                  return filteredHistory.map((sh, idx) => (
+                    <div className="timeline-item" key={sh.id}>
+                      <div className="timeline-line"></div>
+                      <div className="timeline-dot" style={{ background: idx === filteredHistory.length - 1 ? 'var(--primary)' : 'var(--text-muted)' }}></div>
                     <div className="timeline-content">
                       <p style={{ fontWeight: 500, textTransform: 'capitalize' }}>
                         {sh.new_status.replace('_', ' ')}
@@ -313,7 +312,8 @@ export default function ComplaintDetail() {
                       )}
                     </div>
                   </div>
-                ))}
+                ))
+                })()}
               </div>
             ) : (
               <div className="timeline">

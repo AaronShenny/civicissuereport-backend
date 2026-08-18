@@ -42,7 +42,7 @@ class ComplaintAttachmentSerializer(serializers.ModelSerializer):
             'file_type', 'mime_type', 'purpose',
             'uploaded_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = fields
 
 
 class ComplaintStatusHistorySerializer(serializers.ModelSerializer):
@@ -54,7 +54,7 @@ class ComplaintStatusHistorySerializer(serializers.ModelSerializer):
             'id', 'old_status', 'new_status',
             'changed_by_name', 'change_reason', 'changed_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = fields
 
 
 class ComplaintAssignmentSerializer(serializers.ModelSerializer):
@@ -69,7 +69,7 @@ class ComplaintAssignmentSerializer(serializers.ModelSerializer):
             'employee_id', 'employee_name', 'assigned_by_id', 'assigned_by_name',
             'assignment_reason', 'reassignment_reason', 'assignment_date',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = fields
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -80,7 +80,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             'trigger_event', 'channel', 'message_content',
             'is_read', 'created_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = fields
 
 
 class ComplaintListSerializer(serializers.ModelSerializer):
@@ -123,7 +123,7 @@ class ComplaintVerificationSerializer(serializers.ModelSerializer):
             'site_inspection_notes', 'verification_result', 'verification_remarks',
             'verified_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = fields
 
 
 class ComplaintResolutionSerializer(serializers.ModelSerializer):
@@ -137,7 +137,7 @@ class ComplaintResolutionSerializer(serializers.ModelSerializer):
             'resolution_details', 'resolution_proof_url',
             'is_final_resolution', 'created_at',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = fields
 
 
 class ComplaintDetailSerializer(serializers.ModelSerializer):
@@ -169,7 +169,7 @@ class ComplaintDetailSerializer(serializers.ModelSerializer):
             'submitted_at', 'updated_at',
             'attachments', 'status_history', 'assignments', 'verifications', 'resolutions',
         ]
-        read_only_fields = '__all__'
+        read_only_fields = fields
 
 
 class ComplaintSubmitSerializer(serializers.Serializer):

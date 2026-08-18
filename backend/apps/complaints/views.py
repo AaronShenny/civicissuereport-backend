@@ -107,6 +107,26 @@ class ComplaintListCreateView(APIView):
             .select_related('category')
             .order_by('-submitted_at')
         )
+        
+        # Apply Query Parameter Filters
+        status_param = request.query_params.get('status')
+        if status_param and status_param != 'All':
+            complaints = complaints.filter(status=status_param)
+            
+        category_param = request.query_params.get('category')
+        if category_param and category_param != 'All':
+            complaints = complaints.filter(category__name__iexact=category_param)
+            
+        search_param = request.query_params.get('search')
+        if search_param:
+            from django.db.models import Q
+            complaints = complaints.filter(
+                Q(complaint_number__icontains=search_param) |
+                Q(category__name__icontains=search_param) |
+                Q(district__icontains=search_param) |
+                Q(location_address__icontains=search_param)
+            )
+
         serializer = ComplaintListSerializer(complaints, many=True)
         return Response(serializer.data)
 

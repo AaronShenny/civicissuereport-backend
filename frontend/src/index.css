@@ -46,6 +46,11 @@
 
   /* Sidebar */
   --sidebar-width: 280px;
+
+  /* Aliases for components */
+  --text:       #081B32;   /* alias for --text-primary */
+  --bg-default: #F5F7FA;   /* alias for --surface-muted */
+  --radius:     8px;       /* alias for --r-md */
 }
 
 /* ============================================================
@@ -329,6 +334,7 @@ ul, ol { list-style: none; }
 .app-shell {
   display: flex;
   min-height: 100vh;
+  width: 100%;
 }
 
 /* Sidebar */
@@ -2118,4 +2124,66 @@ ul, ol { list-style: none; }
   
 .timeline { border-left: 2px solid var(--border); padding-left: var(--sp-md); position: relative; display: flex; flexDirection: column; gap: var(--sp-md); }  
 .timeline-item { position: relative; margin-bottom: var(--sp-md); }  
-.timeline-dot { position: absolute; left: calc(-1 * var(--sp-md) - 6px); top: 4px; width: 10px; height: 10px; border-radius: 50%; z-index: 2; } 
+.timeline-dot { position: absolute; left: calc(-1 * var(--sp-md) - 6px); top: 4px; width: 10px; height: 10px; border-radius: 50%; z-index: 2; }
+
+/* ============================================================
+   ALERT / INLINE FEEDBACK
+   ============================================================ */
+.alert {
+  padding: var(--sp-md);
+  border-radius: var(--r-md);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+  border: 1px solid transparent;
+  white-space: pre-wrap;
+}
+.alert-error {
+  background: rgba(235, 44, 80, 0.08);
+  border-color: rgba(235, 44, 80, 0.25);
+  color: #c0233f;
+}
+.alert-success {
+  background: rgba(144, 203, 130, 0.12);
+  border-color: rgba(144, 203, 130, 0.35);
+  color: #2a7d1e;
+}
+.alert-info {
+  background: rgba(120, 172, 233, 0.10);
+  border-color: rgba(120, 172, 233, 0.30);
+  color: #1a5fa0;
+}
+.alert-warning {
+  background: rgba(248, 220, 93, 0.15);
+  border-color: rgba(248, 220, 93, 0.40);
+  color: #7a6010;
+}
+
+/* ============================================================
+   TABLE STYLES
+   ============================================================ */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+.table th, .table td {
+  padding: var(--sp-md);
+  border-bottom: 1px solid var(--border);
+}
+.table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-muted);
+}
+.table tr:last-child td {
+  border-bottom: none;
+}
+.table tbody tr:hover {
+  background: var(--surface-subtle);
+}

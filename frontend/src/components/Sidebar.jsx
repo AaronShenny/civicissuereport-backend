@@ -93,6 +93,7 @@ export default function Sidebar() {
               <NavLink
                 key={to}
                 to={to}
+                end
                 className={({ isActive }) =>
                   `sidebar-nav-item${isActive ? ' active' : ''}`
                 }

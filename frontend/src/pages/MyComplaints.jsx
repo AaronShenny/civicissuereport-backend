@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import StatusBadge from '../components/StatusBadge';
@@ -13,47 +13,60 @@ export default function MyComplaints() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  
+  const [categories, setCategories] = useState(['All']);
+  const [hasAny, setHasAny] = useState(true);
 
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await api.get('/categories/');
+        const names = res.map(c => c.name);
+        setCategories(['All', ...names.sort()]);
+      } catch (err) {
+        console.error('Failed to load categories', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch complaints when filters change (with debounce on search)
   useEffect(() => {
     const fetchComplaints = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/complaints/');
-        setComplaints(Array.isArray(res) ? res : (res.results || []));
+        const params = {};
+        if (statusFilter !== 'All') params.status = statusFilter;
+        if (categoryFilter !== 'All') params.category = categoryFilter;
+        if (search.trim()) params.search = search.trim();
+        
+        const queryString = new URLSearchParams(params).toString();
+        const endpoint = `/complaints/${queryString ? `?${queryString}` : ''}`;
+        const res = await api.get(endpoint);
+        const fetched = Array.isArray(res) ? res : (res.results || []);
+        
+        setComplaints(fetched);
+        
+        // Track if user has any complaints at all under no filters
+        if (statusFilter === 'All' && categoryFilter === 'All' && !search.trim()) {
+          setHasAny(fetched.length > 0);
+        }
       } catch (err) {
         setError(err.data?.detail || err.message || 'Failed to load complaints.');
       } finally {
         setLoading(false);
       }
     };
-    fetchComplaints();
-  }, []);
 
-  const categories = useMemo(() => {
-    const cats = new Set(complaints.map(c => c.category_name).filter(Boolean));
-    return ['All', ...Array.from(cats).sort()];
-  }, [complaints]);
+    const delayDebounceFn = setTimeout(() => {
+      fetchComplaints();
+    }, search ? 300 : 0);
 
-  const filteredComplaints = useMemo(() => {
-    return complaints.filter(c => {
-      if (statusFilter !== 'All' && c.status !== statusFilter) {
-        return false;
-      }
-      if (categoryFilter !== 'All' && c.category_name !== categoryFilter) {
-        return false;
-      }
-      if (search) {
-        const query = search.toLowerCase();
-        const matchNumber = c.complaint_number?.toLowerCase().includes(query);
-        const matchCategory = c.category_name?.toLowerCase().includes(query);
-        const matchDistrict = c.district?.toLowerCase().includes(query) || c.location_address?.toLowerCase().includes(query);
-        if (!matchNumber && !matchCategory && !matchDistrict) return false;
-      }
-      return true;
-    });
-  }, [complaints, search, statusFilter, categoryFilter]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, statusFilter, categoryFilter]);
 
-  if (loading) {
+  if (loading && complaints.length === 0) {
     return (
       <div className="empty-state">
         <div className="spinner"></div>
@@ -72,7 +85,7 @@ export default function MyComplaints() {
     );
   }
 
-  if (complaints.length === 0) {
+  if (!hasAny) {
     return (
       <div className="empty-state">
         <p className="empty-state-title">No complaints found</p>
@@ -100,19 +113,19 @@ export default function MyComplaints() {
 
       <div className="card" style={{ marginBottom: 'var(--sp-lg)' }}>
         <div style={{ display: 'flex', gap: 'var(--sp-md)', flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 200px' }}>
-            <label className="form-label" style={{ fontSize: 12 }}>Search</label>
+          <div className="form-group" style={{ flex: '1 1 200px' }}>
+            <label className="form-label">Search</label>
             <input 
               type="text" 
-              className="form-control" 
+              className="input" 
               placeholder="Number, Category, District..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div style={{ flex: '0 0 180px' }}>
-            <label className="form-label" style={{ fontSize: 12 }}>Status</label>
-            <select className="form-control" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <div className="form-group" style={{ flex: '0 0 180px' }}>
+            <label className="form-label">Status</label>
+            <select className="select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="All">All Statuses</option>
               <option value="submitted">Submitted</option>
               <option value="under_verification">Under Verification</option>
@@ -124,9 +137,9 @@ export default function MyComplaints() {
               <option value="invalid">Invalid</option>
             </select>
           </div>
-          <div style={{ flex: '0 0 180px' }}>
-            <label className="form-label" style={{ fontSize: 12 }}>Category</label>
-            <select className="form-control" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+          <div className="form-group" style={{ flex: '0 0 180px' }}>
+            <label className="form-label">Category</label>
+            <select className="select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
@@ -150,14 +163,14 @@ export default function MyComplaints() {
               </tr>
             </thead>
             <tbody>
-              {filteredComplaints.length === 0 ? (
+              {complaints.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: 'var(--sp-xl)', color: 'var(--text-muted)' }}>
                     No complaints match your filters.
                   </td>
                 </tr>
               ) : (
-                filteredComplaints.map(c => (
+                complaints.map(c => (
                   <tr key={c.id}>
                     <td style={{ fontWeight: 500 }}>{c.complaint_number || 'N/A'}</td>
                     <td>{c.category_name || 'Issue'}</td>
@@ -178,13 +191,13 @@ export default function MyComplaints() {
 
         {/* Mobile Card View */}
         <div className="mobile-only" style={{ padding: 'var(--sp-md)' }}>
-          {filteredComplaints.length === 0 ? (
+          {complaints.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 'var(--sp-xl)', color: 'var(--text-muted)' }}>
               No complaints match your filters.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)' }}>
-              {filteredComplaints.map(c => (
+              {complaints.map(c => (
                 <div 
                   key={c.id} 
                   style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 'var(--sp-md)', cursor: 'pointer' }}
