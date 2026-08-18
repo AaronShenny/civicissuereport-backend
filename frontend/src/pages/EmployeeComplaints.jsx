@@ -214,8 +214,8 @@ function ProgressForm({ complaintId, onComplete }) {
     setLoading(true);
     try {
       const payload = new FormData();
-      payload.append('status_update', status);
-      payload.append('progress_remarks', remarks);
+      payload.append('progress_update', status);
+      payload.append('remarks', remarks);
       await api.post(`/employee/complaints/${complaintId}/progress/`, payload);
       alert('Progress updated');
       onComplete();
@@ -248,15 +248,29 @@ function ProgressForm({ complaintId, onComplete }) {
 }
 
 function ResolveForm({ complaintId, onComplete }) {
+  const [details, setDetails] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    if (!file) {
+      alert("Resolution proof attachment is required.");
+      setLoading(false);
+      return;
+    }
+    if (details.trim().length < 10) {
+      alert("Resolution details must be at least 10 characters.");
+      setLoading(false);
+      return;
+    }
     try {
       const payload = new FormData();
-      payload.append('resolution_remarks', remarks);
+      payload.append('resolution_details', details);
+      payload.append('remarks', remarks);
+      payload.append('attachments', file);
       await api.post(`/employee/complaints/${complaintId}/resolve/`, payload);
       alert('Resolution submitted');
       onComplete();
@@ -270,8 +284,16 @@ function ResolveForm({ complaintId, onComplete }) {
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-md)' }}>
       <div>
-        <label className="label">Resolution Remarks *</label>
-        <textarea className="input" rows={2} required style={{ width: '100%' }} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+        <label className="label">Resolution Details *</label>
+        <textarea className="input" rows={3} required style={{ width: '100%' }} value={details} onChange={(e) => setDetails(e.target.value)} placeholder="Describe how the issue was resolved..." />
+      </div>
+      <div>
+        <label className="label">Additional Remarks (Optional)</label>
+        <textarea className="input" rows={2} style={{ width: '100%' }} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+      </div>
+      <div>
+        <label className="label">Resolution Proof (Required) *</label>
+        <input type="file" className="input" required accept="image/*,video/*,.pdf" onChange={(e) => setFile(e.target.files[0])} style={{ width: '100%' }} />
       </div>
       <button type="submit" className="btn btn-secondary" style={{ background: 'var(--secondary)', color: 'white', borderColor: 'var(--secondary)', alignSelf: 'flex-start' }} disabled={loading}>
         {loading ? 'Submitting...' : 'Mark as Resolved'}

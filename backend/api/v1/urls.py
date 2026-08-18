@@ -23,4 +23,10 @@ urlpatterns = [
     path('employee/complaints/<uuid:pk>/progress/', complaint_views.EmployeeAddProgressUpdateView.as_view(), name='employee-add-progress'),
     path('employee/complaints/<uuid:pk>/resolve/', complaint_views.EmployeeResolveComplaintView.as_view(), name='employee-resolve-complaint'),
     path('employee/complaints/<uuid:pk>/resolutions/', complaint_views.EmployeeComplaintResolutionsListView.as_view(), name='employee-complaint-resolutions'),
+
+    # Notifications (Phase 3)
+    path('notifications/', complaint_views.NotificationListView.as_view(), name='notification-list'),
+    path('notifications/unread-count/', complaint_views.NotificationUnreadCountView.as_view(), name='notification-unread-count'),
+    path('notifications/read-all/', complaint_views.NotificationMarkAllReadView.as_view(), name='notification-mark-all-read'),
+    path('notifications/<uuid:pk>/read/', complaint_views.NotificationMarkReadView.as_view(), name='notification-mark-read'),
 ]

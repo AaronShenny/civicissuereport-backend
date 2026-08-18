@@ -5,6 +5,7 @@ Departments are managed by System Admins only.
 
 from rest_framework import serializers
 from apps.users.models import Department
+from apps.departments.models import DepartmentCategoryRule, Jurisdiction
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -18,3 +19,24 @@ class DepartmentCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = ['name', 'description', 'is_active']
+
+
+class JurisdictionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Jurisdiction
+        fields = ['id', 'name', 'area_type']
+
+
+class DepartmentCategoryRuleSerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    jurisdiction_name = serializers.CharField(source='jurisdiction.name', read_only=True, allow_null=True)
+
+    class Meta:
+        model = DepartmentCategoryRule
+        fields = [
+            'id', 'department_id', 'department_name', 
+            'category_id', 'category_name', 
+            'jurisdiction_id', 'jurisdiction_name',
+            'priority_rank', 'is_active'
+        ]

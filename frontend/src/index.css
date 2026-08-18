@@ -2187,3 +2187,27 @@ ul, ol { list-style: none; }
 .table tbody tr:hover {
   background: var(--surface-subtle);
 }
+
+/* ============================================================
+   NOTIFICATION TRAY
+   ============================================================ */
+.notification-tray {
+  width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+.notification-tray-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface-muted);
+}
+.notification-tray-body {
+  max-height: 350px;
+  overflow-y: auto;
+}

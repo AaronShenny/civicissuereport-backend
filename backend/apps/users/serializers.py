@@ -104,3 +104,17 @@ class StaffProfileSummarySerializer(serializers.ModelSerializer):
             'department_name',
             'account_status',
         ]
+
+class EmployeeCreateSerializer(serializers.Serializer):
+    full_name = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    role_id = serializers.IntegerField()
+    department_id = serializers.UUIDField(required=False, allow_null=True)
+    jurisdiction_id = serializers.UUIDField(required=False, allow_null=True)
+
+class LocationTransferSerializer(serializers.Serializer):
+    jurisdiction_id = serializers.UUIDField(allow_null=True)
+
+class DepartmentTransferSerializer(serializers.Serializer):
+    department_id = serializers.UUIDField(allow_null=True)

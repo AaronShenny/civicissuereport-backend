@@ -187,3 +187,83 @@ class ProfileDetailView(generics.RetrieveAPIView):
 
         # Citizens and ground-level employees may only retrieve their own.
         return Profile.objects.select_related('role', 'department').filter(id=profile.id)
+
+
+from apps.users.models import Role
+from apps.users.serializers import RoleSerializer
+
+class RoleListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+    serializer_class = RoleSerializer
+    queryset = Role.objects.all()
+
+from apps.users.services import create_employee, transfer_location, transfer_department
+from apps.users.serializers import EmployeeCreateSerializer, LocationTransferSerializer, DepartmentTransferSerializer
+
+class EmployeeCreateView(APIView):
+    """
+    POST /api/v1/users/employees/
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+
+    def post(self, request):
+        serializer = EmployeeCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        
+        try:
+            profile = create_employee(
+                admin_profile=request.user,
+                full_name=data['full_name'],
+                email=data['email'],
+                phone=data.get('phone', ''),
+                role_id=data['role_id'],
+                department_id=data.get('department_id'),
+                jurisdiction_id=data.get('jurisdiction_id')
+            )
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+        return Response(StaffProfileSummarySerializer(profile).data, status=status.HTTP_201_CREATED)
+
+
+class EmployeeLocationTransferView(APIView):
+    """
+    POST /api/v1/users/<uuid:pk>/transfer-location/
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+
+    def post(self, request, pk):
+        serializer = LocationTransferSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            profile = transfer_location(
+                admin_profile=request.user,
+                employee_id=pk,
+                new_jurisdiction_id=serializer.validated_data.get('jurisdiction_id')
+            )
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+        return Response(StaffProfileSummarySerializer(profile).data, status=status.HTTP_200_OK)
+
+
+class EmployeeDepartmentTransferView(APIView):
+    """
+    POST /api/v1/users/<uuid:pk>/transfer-department/
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsSystemAdmin]
+
+    def post(self, request, pk):
+        serializer = DepartmentTransferSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            profile = transfer_department(
+                admin_profile=request.user,
+                employee_id=pk,
+                new_department_id=serializer.validated_data.get('department_id')
+            )
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            
+        return Response(StaffProfileSummarySerializer(profile).data, status=status.HTTP_200_OK)

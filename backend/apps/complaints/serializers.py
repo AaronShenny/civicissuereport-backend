@@ -292,4 +292,49 @@ class RejectResolutionSerializer(serializers.Serializer):
     """Input serializer for Citizen rejecting resolution."""
     rejection_reason = serializers.CharField(min_length=5, max_length=3000)
 
+class PublicComplaintStatusHistorySerializer(serializers.ModelSerializer):
+    status = serializers.CharField(source='new_status')
 
+    class Meta:
+        model = ComplaintStatusHistory
+        fields = ['status', 'changed_at']
+        read_only_fields = fields
+
+
+class PublicComplaintResolutionSerializer(serializers.ModelSerializer):
+    details = serializers.CharField(source='resolution_details')
+    resolved_at = serializers.DateTimeField(source='created_at')
+
+    class Meta:
+        model = ComplaintResolution
+        fields = ['details', 'resolved_at']
+        read_only_fields = fields
+
+
+class PublicComplaintTrackingSerializer(serializers.ModelSerializer):
+    """
+    Publicly safe serializer for complaint tracking.
+    Never includes PII, location details, internal notes, or employee information.
+    """
+    category = serializers.CharField(source='category.name', read_only=True, default=None)
+    status_history = PublicComplaintStatusHistorySerializer(many=True, read_only=True)
+    resolution = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Complaint
+        fields = [
+            'complaint_number',
+            'category',
+            'status',
+            'submitted_at',
+            'updated_at',
+            'status_history',
+            'resolution',
+        ]
+        read_only_fields = fields
+
+    def get_resolution(self, obj):
+        res = obj.resolutions.filter(is_final_resolution=True).order_by('-created_at').first()
+        if res:
+            return PublicComplaintResolutionSerializer(res).data
+        return None

@@ -18,13 +18,30 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.models import Department
-from apps.departments.serializers import DepartmentSerializer, DepartmentCreateUpdateSerializer
+from apps.departments.models import DepartmentCategoryRule, Jurisdiction
+from apps.departments.serializers import (
+    DepartmentSerializer, 
+    DepartmentCreateUpdateSerializer,
+    DepartmentCategoryRuleSerializer,
+    JurisdictionSerializer
+)
 from core.permissions.roles import (
     IsAuthenticatedViaSupabase,
     IsSystemAdmin,
     IsDepartmentAdminOrSystemAdmin,
     IsSupervisorOrAbove,
 )
+
+
+class DepartmentCategoryRuleListView(generics.ListAPIView):
+    """
+    GET /api/v1/departments/category-rules/
+        - System Admin: all rules.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsSystemAdmin]
+    serializer_class = DepartmentCategoryRuleSerializer
+    queryset = DepartmentCategoryRule.objects.all().select_related('department', 'category', 'jurisdiction').order_by('category__name', 'priority_rank')
+
 
 
 class DepartmentListView(generics.ListAPIView):
@@ -87,3 +104,11 @@ class DepartmentDetailView(generics.RetrieveAPIView):
         if profile.department_id:
             return Department.objects.filter(id=profile.department_id)
         return Department.objects.none()
+
+class JurisdictionListView(generics.ListAPIView):
+    """
+    GET /api/v1/departments/jurisdictions/
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+    serializer_class = JurisdictionSerializer
+    queryset = Jurisdiction.objects.all().order_by('name')

@@ -685,5 +685,97 @@ class CitizenRejectResolutionView(APIView):
         )
 
 
+# ---------------------------------------------------------------------------
+# Notification Views (Phase 3)
+# ---------------------------------------------------------------------------
+
+from apps.complaints.models import Notification
+from apps.complaints.serializers import NotificationSerializer
+
+class NotificationListView(generics.ListAPIView):
+    """
+    GET /api/v1/notifications/
+    Returns all notifications for the authenticated user, ordered by newest first.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase]
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient_id=self.request.user.id).order_by('-created_at')
 
 
+class NotificationUnreadCountView(APIView):
+    """
+    GET /api/v1/notifications/unread-count/
+    Returns the count of unread notifications for the authenticated user.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase]
+
+    def get(self, request):
+        count = Notification.objects.filter(recipient_id=request.user.id, is_read=False).count()
+        return Response({'count': count}, status=status.HTTP_200_OK)
+
+
+class NotificationMarkReadView(APIView):
+    """
+    POST /api/v1/notifications/<uuid:pk>/read/
+    Marks a single notification as read.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase]
+
+    def post(self, request, pk):
+        # We enforce ownership via get_object_or_404 against the user-scoped queryset
+        notification = get_object_or_404(
+            Notification.objects.filter(recipient_id=request.user.id),
+            pk=pk
+        )
+        
+        if not notification.is_read:
+            notification.is_read = True
+            notification.save(update_fields=['is_read'])
+            
+        return Response(NotificationSerializer(notification).data, status=status.HTTP_200_OK)
+
+
+class NotificationMarkAllReadView(APIView):
+    """
+    POST /api/v1/notifications/read-all/
+    Marks all unread notifications for the authenticated user as read.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase]
+
+    def post(self, request):
+        unread_notifications = Notification.objects.filter(
+            recipient_id=request.user.id,
+            is_read=False
+        )
+        updated_count = unread_notifications.update(is_read=True)
+        return Response({'updated': updated_count}, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Public Complaint Tracking View (Phase 10A)
+# ---------------------------------------------------------------------------
+
+from rest_framework.permissions import AllowAny
+from apps.complaints.serializers import PublicComplaintTrackingSerializer
+
+class PublicComplaintTrackingView(APIView):
+    """
+    GET /api/v1/complaints/public/<complaint_number>/
+    Public, unauthenticated endpoint to track complaint status securely.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, complaint_number):
+        # Explicit lookup by complaint_number, case-insensitive mapping if needed
+        # Assuming exact match based on existing convention (e.g. CMP-YYYY-NNNNNN)
+        complaint = get_object_or_404(
+            Complaint.objects.select_related('category')
+            .prefetch_related('status_history', 'resolutions'),
+            complaint_number__iexact=complaint_number
+        )
+
+        serializer = PublicComplaintTrackingSerializer(complaint)
+        return Response(serializer.data, status=status.HTTP_200_OK)

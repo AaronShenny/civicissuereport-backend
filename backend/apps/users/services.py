@@ -54,3 +54,110 @@ def validate_staff_has_department(profile: Profile) -> None:
         raise ValidationError(
             f'Staff members with the role "{profile.role_name}" must be assigned to a department.'
         )
+
+import secrets
+import string
+import requests
+from django.conf import settings
+from rest_framework.exceptions import ValidationError as DRFValidationError
+
+
+def create_employee(
+    admin_profile: Profile,
+    full_name: str,
+    email: str,
+    phone: str,
+    role_id: int,
+    department_id: str,
+    jurisdiction_id: str
+) -> Profile:
+    """
+    Creates a new employee account in Supabase Auth and provisions their Profile.
+    """
+    if admin_profile.is_department_admin:
+        target_role = Role.objects.filter(id=role_id).first()
+        if not target_role or target_role.role_name == Role.SYSTEM_ADMIN:
+            raise DRFValidationError("Department Admins cannot assign this role.")
+        # Dept admin MUST create within their own department
+        department_id = admin_profile.department_id
+    elif not admin_profile.is_system_admin:
+        raise DRFValidationError("Unauthorized to create employees.")
+
+    # 1. Create in Supabase Auth using Admin API
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    password = ''.join(secrets.choice(alphabet) for _ in range(16))
+
+    headers = {
+        'apikey': settings.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': f'Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}',
+        'Content-Type': 'application/json'
+    }
+    
+    data = {
+        'email': email,
+        'password': password,
+        'user_metadata': {'full_name': full_name},
+        'email_confirm': True
+    }
+    if phone:
+        data['phone'] = phone
+
+    url = f'{settings.SUPABASE_URL}/auth/v1/admin/users'
+    r = requests.post(url, json=data, headers=headers)
+
+    if r.status_code not in (200, 201):
+        raise DRFValidationError(f"Failed to create user in Supabase: {r.text}")
+
+    uid = r.json()['id']
+
+    # 2. Update Profile created by trigger
+    # Wait/check to ensure trigger completed
+    profile = Profile.objects.filter(id=uid).first()
+    if not profile:
+        raise DRFValidationError("User created but Profile trigger failed.")
+
+    profile.role_id = role_id
+    profile.department_id = department_id
+    profile.jurisdiction_id = jurisdiction_id or None
+    profile.account_status = Profile.ACCOUNT_STATUS_ACTIVE
+    profile.save()
+
+    return profile
+
+
+def transfer_location(admin_profile: Profile, employee_id: str, new_jurisdiction_id: str) -> Profile:
+    """
+    Transfers an employee to a new jurisdiction/district.
+    """
+    try:
+        employee = Profile.objects.get(id=employee_id)
+    except Profile.DoesNotExist:
+        raise DRFValidationError("Employee not found.")
+
+    if admin_profile.is_department_admin:
+        if employee.department_id != admin_profile.department_id:
+            raise DRFValidationError("Cannot transfer employee of another department.")
+    elif not admin_profile.is_system_admin:
+        raise DRFValidationError("Unauthorized")
+
+    employee.jurisdiction_id = new_jurisdiction_id or None
+    employee.save()
+    return employee
+
+
+def transfer_department(admin_profile: Profile, employee_id: str, new_department_id: str) -> Profile:
+    """
+    Transfers an employee to a new department. System Admin ONLY.
+    """
+    if not admin_profile.is_system_admin:
+        raise DRFValidationError("Only System Admins can transfer departments.")
+
+    try:
+        employee = Profile.objects.get(id=employee_id)
+    except Profile.DoesNotExist:
+        raise DRFValidationError("Employee not found.")
+
+    employee.department_id = new_department_id or None
+    employee.save()
+    return employee
+

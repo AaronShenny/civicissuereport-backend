@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import NotificationTray from './NotificationTray';
 
 const pageTitles = {
   '/dashboard':             'Dashboard',
@@ -18,6 +19,26 @@ export default function Header() {
   const navigate = useNavigate();
   const { signOut, profile } = useAuth();
   
+  const [showNotifications, setShowNotifications] = React.useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const { api } = await import('../lib/api');
+      const res = await api.get('/notifications/unread-count/');
+      setUnreadCount(res.count || 0);
+    } catch (err) {
+      console.error('Failed to fetch unread count', err);
+    }
+  };
+
+  React.useEffect(() => {
+    if (profile) {
+      fetchUnreadCount();
+      // Optional: Polling could be added here if needed, but not strictly required
+    }
+  }, [profile]);
+
   const handleLogout = async () => {
     await signOut();
     navigate('/login');
@@ -42,9 +63,38 @@ export default function Header() {
         <h1 className="top-header-title">{title}</h1>
       </div>
       <div className="top-header-actions">
-        <button className="btn btn-ghost btn-icon" title="Notifications">
-          <BellIcon size={18} />
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button 
+            className="btn btn-ghost btn-icon" 
+            title="Notifications" 
+            onClick={() => setShowNotifications(!showNotifications)}
+            style={{ position: 'relative' }}
+          >
+            <BellIcon size={18} />
+            {unreadCount > 0 && (
+              <span style={{
+                position: 'absolute', top: 4, right: 4, 
+                width: 8, height: 8, backgroundColor: 'red', borderRadius: '50%'
+              }} />
+            )}
+          </button>
+          
+          {showNotifications && (
+            <>
+              <div 
+                style={{ position: 'fixed', inset: 0, zIndex: 40 }} 
+                onClick={() => setShowNotifications(false)}
+              />
+              <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: '0.5rem', zIndex: 50 }}>
+                <NotificationTray 
+                  onClose={() => setShowNotifications(false)} 
+                  onStatusChange={fetchUnreadCount} 
+                />
+              </div>
+            </>
+          )}
+        </div>
+        
         <button className="btn btn-ghost btn-icon" title="Log Out" onClick={handleLogout}>
           <LogOutIcon size={18} />
         </button>

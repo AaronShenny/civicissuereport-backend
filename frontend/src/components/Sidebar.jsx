@@ -49,15 +49,37 @@ export default function Sidebar() {
         section: 'Department',
         items: [
           { to: '/department/complaints', label: 'All Complaints', icon: FolderIcon },
+          { to: '/department/employees', label: 'Team', icon: UsersIcon },
+          { to: '/department/performance', label: 'Performance', icon: ActivityIcon },
         ],
       });
     }
 
     if (role === 'system_admin') {
       items.push({
-        section: 'Administration',
+        section: 'System Administration',
         items: [
-          { to: '/admin/overview', label: 'System Overview', icon: ChartIcon },
+          { to: '/dashboard', label: 'System Overview', icon: ChartIcon },
+          { to: '/admin/users', label: 'Employees', icon: UsersIcon },
+          { to: '/admin/departments', label: 'Departments', icon: FolderIcon },
+          { to: '/admin/categories', label: 'Categories', icon: GridIcon },
+          { to: '/admin/category-routing', label: 'Category Routing', icon: GridIcon },
+        ],
+      });
+      items.push({
+        section: 'System Configuration',
+        items: [
+          { to: '/admin/roles', label: 'Roles & Permissions', icon: AlertIcon },
+          { to: '/admin/priority-rules', label: 'Priority Rules', icon: AlertIcon },
+          { to: '/admin/assignment-rules', label: 'Assignment Rules', icon: AlertIcon },
+        ],
+      });
+      items.push({
+        section: 'Audit & Reports',
+        items: [
+          { to: '/admin/audit-logs', label: 'Audit Logs', icon: ListIcon },
+          { to: '/admin/reports', label: 'Reports', icon: ChartIcon },
+          { to: '/admin/settings', label: 'Settings', icon: ActivityIcon },
         ],
       });
     }
@@ -151,4 +173,10 @@ function ChartIcon({ size = 20 }) {
 }
 function ChevronIcon({ size = 16, color = 'currentColor' }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
+}
+function UsersIcon({ size = 20 }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
+}
+function ActivityIcon({ size = 20 }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
 }

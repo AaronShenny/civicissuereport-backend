@@ -1,0 +1,21 @@
+-- Phase 8: Make jurisdictions.boundary nullable for district-based MVP routing.
+--
+-- Rationale:
+--   The current routing engine (routing.py) resolves complaints using
+--   complaint.district → Jurisdiction.name (string match), NOT spatial queries.
+--   The boundary column was defined as NOT NULL, preventing creation of
+--   district-level jurisdiction records without fabricating PostGIS polygons.
+--
+-- This migration:
+--   - Makes boundary nullable (DROP NOT NULL)
+--   - Preserves the geography(MultiPolygon,4326) type
+--   - Preserves the existing GIST index (indexes non-null values)
+--   - Preserves future spatial-routing capability
+--   - Does NOT delete the column
+--
+-- Safety audit:
+--   Zero backend code paths read, write, or depend on boundary.
+--   No RLS policies, triggers, or functions reference boundary.
+--   No serializers or views expose boundary.
+
+ALTER TABLE public.jurisdictions ALTER COLUMN boundary DROP NOT NULL;
