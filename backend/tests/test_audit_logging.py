@@ -17,6 +17,8 @@ def mock_profile(role_name):
     profile.is_supervisor = (role_name == "supervisor")
     profile.is_staff_member = True
     profile.is_authenticated = True
+    profile.account_status = 'active'
+    profile.profile = profile
     return profile
 
 def test_audit_log_api_access_system_admin(api_client):
