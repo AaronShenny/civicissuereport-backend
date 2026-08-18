@@ -779,3 +779,63 @@ class PublicComplaintTrackingView(APIView):
 
         serializer = PublicComplaintTrackingSerializer(complaint)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# Reporting & Analytics Views (Phase 13)
+# ---------------------------------------------------------------------------
+
+from core.permissions.roles import IsDepartmentAdminOrSystemAdmin
+from apps.complaints.reporting import get_filtered_complaints_queryset, get_analytics_data, generate_excel_report, generate_pdf_report
+from django.http import HttpResponse
+
+class AdminAnalyticsView(APIView):
+    """
+    GET /api/v1/admin/reports/analytics/
+    Returns aggregated JSON statistics based on query parameters.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+
+    def get(self, request):
+        profile = getattr(request.user, 'profile', None)
+        if not profile:
+            return Response({'detail': 'Profile not found.'}, status=status.HTTP_403_FORBIDDEN)
+
+        filters = request.query_params
+        queryset = get_filtered_complaints_queryset(profile, filters)
+        analytics_data = get_analytics_data(queryset)
+
+        return Response(analytics_data, status=status.HTTP_200_OK)
+
+
+class AdminExportView(APIView):
+    """
+    GET /api/v1/admin/reports/export/
+    Returns generated Excel or PDF report based on query parameters.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+
+    def get(self, request):
+        profile = getattr(request.user, 'profile', None)
+        if not profile:
+            return Response({'detail': 'Profile not found.'}, status=status.HTTP_403_FORBIDDEN)
+
+        filters = request.query_params
+        fmt = filters.get('format', 'xlsx').lower()
+
+        if fmt not in ['xlsx', 'pdf']:
+            return Response({'detail': 'Invalid format. Use xlsx or pdf.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        queryset = get_filtered_complaints_queryset(profile, filters)
+        analytics_data = get_analytics_data(queryset)
+
+        if fmt == 'xlsx':
+            file_data = generate_excel_report(analytics_data, queryset)
+            response = HttpResponse(file_data, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename="civic_report.xlsx"'
+            return response
+        else:
+            file_data = generate_pdf_report(analytics_data, queryset, filters)
+            response = HttpResponse(file_data, content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="civic_report.pdf"'
+            return response

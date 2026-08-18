@@ -63,6 +63,10 @@ async function request(endpoint, options = {}) {
     return null;
   }
 
+  if (options.responseType === 'blob') {
+    return response.blob();
+  }
+
   return response.json();
 }
 
@@ -73,3 +77,5 @@ export const api = {
   patch: (endpoint, body, options) => request(endpoint, { method: 'PATCH', body: body instanceof FormData ? body : JSON.stringify(body), ...options }),
   delete: (endpoint, options) => request(endpoint, { method: 'DELETE', ...options }),
 };
+
+export default api;
