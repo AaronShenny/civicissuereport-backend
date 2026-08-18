@@ -216,6 +216,10 @@ def _create_complaint_in_db(
     # Build WKT representation for the location text field at the model level.
     location_wkt = f'POINT({longitude} {latitude})'
 
+    # Calculate BASE deterministic priority using category name
+    from apps.complaints.priority import get_base_priority
+    base_priority = get_base_priority(category.name)
+
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -224,14 +228,15 @@ def _create_complaint_in_db(
                 state, district, google_maps_url,
                 location, location_lat, location_lng, location_address,
                 inconvenience_details, expected_solution,
-                status, reporter_count, submitted_at, updated_at
+                status, reporter_count, submitted_at, updated_at,
+                priority_category
             ) VALUES (
                 %s, %s, %s, %s, %s,
                 %s, %s, %s,
                 ST_SetSRID(ST_MakePoint(%s, %s), 4326),
                 %s, %s, %s,
                 %s, %s,
-                %s, %s, %s, %s
+                %s, %s, %s, %s, %s
             )
             """,
             [
@@ -241,7 +246,7 @@ def _create_complaint_in_db(
                 float(longitude), float(latitude),  # ST_MakePoint(lng, lat)
                 float(latitude), float(longitude), location_address or '',
                 inconvenience_details or '', expected_solution or '',
-                ComplaintStatus.SUBMITTED, 1, now, now,
+                ComplaintStatus.SUBMITTED, 1, now, now, base_priority
             ],
         )
 
@@ -350,6 +355,13 @@ def submit_complaint(
             '%d attachment(s) removed from DB after Storage upload failure for complaint %s.',
             len(failed_paths), complaint.complaint_number,
         )
+
+    # Phase 12: Deterministic Duplicate Detection
+    from apps.complaints.duplicates import detect_and_link_duplicate
+    is_duplicate = detect_and_link_duplicate(complaint)
+    if is_duplicate:
+        # Halt lifecycle: do not run AI, do not route.
+        return complaint
 
     # Phase 8: Trigger AI severity assessment in background.
     # The thread runs independently of this HTTP request.

@@ -220,6 +220,16 @@ def verify_complaint(
 
         Notification.objects.bulk_create(notifications_to_create)
 
+        from apps.users.audit_logger import log_audit_event
+        log_audit_event(
+            actor=employee,
+            action="verify_complaint",
+            entity_type="Complaint",
+            entity_id=str(complaint.id),
+            old_value={"status": ComplaintStatus.ASSIGNED},
+            new_value={"status": complaint.status, "verification_result": result_cleaned}
+        )
+
     # Post-commit: upload evidence files to Supabase Storage
     failed_paths = []
     for path, (file_bytes, mime_type) in attachment_bytes_map.items():

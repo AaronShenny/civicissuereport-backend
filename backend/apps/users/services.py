@@ -122,6 +122,22 @@ def create_employee(
     profile.account_status = Profile.ACCOUNT_STATUS_ACTIVE
     profile.save()
 
+    from apps.users.audit_logger import log_audit_event
+    log_audit_event(
+        actor=admin_profile,
+        action="create_employee",
+        entity_type="Profile",
+        entity_id=str(profile.id),
+        old_value=None,
+        new_value={
+            "role_id": role_id,
+            "department_id": str(department_id) if department_id else None,
+            "jurisdiction_id": str(jurisdiction_id) if jurisdiction_id else None,
+            "full_name": full_name,
+            "email": email
+        }
+    )
+
     return profile
 
 
@@ -140,8 +156,21 @@ def transfer_location(admin_profile: Profile, employee_id: str, new_jurisdiction
     elif not admin_profile.is_system_admin:
         raise DRFValidationError("Unauthorized")
 
+    old_jurisdiction = employee.jurisdiction_id
+
     employee.jurisdiction_id = new_jurisdiction_id or None
     employee.save()
+    
+    from apps.users.audit_logger import log_audit_event
+    log_audit_event(
+        actor=admin_profile,
+        action="transfer_location",
+        entity_type="Profile",
+        entity_id=str(employee.id),
+        old_value={"jurisdiction_id": str(old_jurisdiction) if old_jurisdiction else None},
+        new_value={"jurisdiction_id": str(employee.jurisdiction_id) if employee.jurisdiction_id else None}
+    )
+    
     return employee
 
 
@@ -157,7 +186,20 @@ def transfer_department(admin_profile: Profile, employee_id: str, new_department
     except Profile.DoesNotExist:
         raise DRFValidationError("Employee not found.")
 
+    old_department = employee.department_id
+
     employee.department_id = new_department_id or None
     employee.save()
+    
+    from apps.users.audit_logger import log_audit_event
+    log_audit_event(
+        actor=admin_profile,
+        action="transfer_department",
+        entity_type="Profile",
+        entity_id=str(employee.id),
+        old_value={"department_id": str(old_department) if old_department else None},
+        new_value={"department_id": str(employee.department_id) if employee.department_id else None}
+    )
+
     return employee
 

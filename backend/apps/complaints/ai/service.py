@@ -226,30 +226,54 @@ def _sync_complaint_severity(
     complaint_id: str,
     result: 'SeverityResult',
     now: datetime,
+    base_priority: str = None,
 ) -> None:
     """
     Synchronises complaints.severity_level and complaints.severity_score
-    with the latest classification result.
+    with the latest classification result, and calculates the final
+    operational priority using the AI priority modifier.
 
     This is an UPDATE on the complaints table — it never changes status,
     assignment, or any lifecycle fields.
     """
+    from apps.complaints.priority import calculate_final_priority
+    final_priority = calculate_final_priority(base_priority, result.severity_level) if base_priority else None
+
     with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            UPDATE complaints
-               SET severity_level = %s,
-                   severity_score = %s,
-                   updated_at     = %s
-             WHERE id = %s
-            """,
-            [
-                result.severity_level,
-                round(result.severity_score, 2),
-                now,
-                complaint_id,
-            ],
-        )
+        if final_priority:
+            cursor.execute(
+                """
+                UPDATE complaints
+                   SET severity_level = %s,
+                       severity_score = %s,
+                       priority_category = %s,
+                       updated_at     = %s
+                 WHERE id = %s
+                """,
+                [
+                    result.severity_level,
+                    round(result.severity_score, 2),
+                    final_priority,
+                    now,
+                    complaint_id,
+                ],
+            )
+        else:
+            cursor.execute(
+                """
+                UPDATE complaints
+                   SET severity_level = %s,
+                       severity_score = %s,
+                       updated_at     = %s
+                 WHERE id = %s
+                """,
+                [
+                    result.severity_level,
+                    round(result.severity_score, 2),
+                    now,
+                    complaint_id,
+                ],
+            )
 
 
 def _create_review_task_if_needed(
@@ -336,11 +360,11 @@ class ComplaintSeverityService:
 
         logger.info('Starting AI severity assessment for complaint %s.', complaint_id)
 
-        # Step 1: Fetch description
+        # Step 1: Fetch description and base priority
         try:
-            complaint = Complaint.objects.only('id', 'description', 'complaint_number').get(
-                id=complaint_id
-            )
+            complaint = Complaint.objects.only(
+                'id', 'description', 'complaint_number', 'priority_category'
+            ).get(id=complaint_id)
         except Complaint.DoesNotExist:
             logger.error(
                 'AI assessment: complaint %s not found in database.', complaint_id
@@ -407,12 +431,13 @@ class ComplaintSeverityService:
             )
             return
 
-        # Step 5: Sync severity fields to the complaint row
+        # Step 5: Sync severity and compute final operational priority
         try:
             _sync_complaint_severity(
                 complaint_id=str(complaint_id),
                 result=result,
                 now=now,
+                base_priority=complaint.priority_category,
             )
         except Exception as exc:
             logger.error(

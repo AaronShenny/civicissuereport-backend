@@ -267,3 +267,38 @@ class EmployeeDepartmentTransferView(APIView):
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             
         return Response(StaffProfileSummarySerializer(profile).data, status=status.HTTP_200_OK)
+
+
+from apps.users.models import AuditLog
+from apps.users.serializers import AuditLogSerializer
+from core.permissions.roles import IsSystemAdmin
+
+class AuditLogListView(generics.ListAPIView):
+    """
+    GET /api/v1/admin/audit-logs/
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsSystemAdmin]
+    serializer_class = AuditLogSerializer
+
+    def get_queryset(self):
+        qs = AuditLog.objects.select_related('actor').all()
+        
+        actor = self.request.query_params.get('actor')
+        if actor:
+            qs = qs.filter(actor_id=actor)
+            
+        action = self.request.query_params.get('action')
+        if action:
+            qs = qs.filter(action=action)
+            
+        entity_type = self.request.query_params.get('entity_type')
+        if entity_type:
+            qs = qs.filter(entity_type=entity_type)
+            
+        entity_id = self.request.query_params.get('entity_id')
+        if entity_id:
+            qs = qs.filter(entity_id=entity_id)
+            
+        # Already ordered by -created_at in model Meta
+        return qs
+

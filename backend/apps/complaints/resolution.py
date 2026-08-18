@@ -203,6 +203,16 @@ def add_progress_update(
 
         Notification.objects.bulk_create(notifications)
 
+        from apps.users.audit_logger import log_audit_event
+        log_audit_event(
+            actor=user,
+            action="progress_update",
+            entity_type="Complaint",
+            entity_id=str(complaint.id),
+            old_value={"status": old_status},
+            new_value={"status": complaint.status, "progress_update": progress_text}
+        )
+
     logger.info(
         'Progress update recorded for complaint %s by %s %s (Status: %s)',
         complaint.complaint_number, user.role_name, user.id, complaint.status,
@@ -346,6 +356,16 @@ def resolve_complaint(
                 )
 
         Notification.objects.bulk_create(notifications)
+
+        from apps.users.audit_logger import log_audit_event
+        log_audit_event(
+            actor=user,
+            action="resolve_complaint",
+            entity_type="Complaint",
+            entity_id=str(complaint.id),
+            old_value={"status": old_status},
+            new_value={"status": complaint.status, "resolution_details": res_details_cleaned}
+        )
 
     # Post-commit: upload resolution proof files to Supabase Storage
     failed_paths = []

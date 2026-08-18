@@ -117,4 +117,15 @@ class LocationTransferSerializer(serializers.Serializer):
     jurisdiction_id = serializers.UUIDField(allow_null=True)
 
 class DepartmentTransferSerializer(serializers.Serializer):
-    department_id = serializers.UUIDField(allow_null=True)
+    department_id = serializers.UUIDField(required=True)
+
+from apps.users.models import AuditLog
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AuditLog
+        fields = [
+            'id', 'actor', 'action', 'entity_type', 
+            'entity_id', 'old_value', 'new_value', 'created_at'
+        ]
+        read_only_fields = fields

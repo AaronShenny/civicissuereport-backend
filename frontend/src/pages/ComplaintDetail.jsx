@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../auth/AuthProvider';
 import StatusBadge from '../components/StatusBadge';
+import PriorityBadge from '../components/PriorityBadge';
 
 export default function ComplaintDetail() {
   const { id } = useParams();
@@ -99,6 +100,7 @@ export default function ComplaintDetail() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-md)' }}>
             <h2 className="page-title" style={{ margin: 0 }}>Complaint {complaint.complaint_number}</h2>
             <StatusBadge status={complaint.status} />
+            <PriorityBadge priority={complaint.priority_category} />
           </div>
         </div>
       </div>

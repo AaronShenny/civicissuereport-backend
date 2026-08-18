@@ -149,6 +149,16 @@ def assign_employee_to_complaint(
             created_at=now,
         )
 
+        from apps.users.audit_logger import log_audit_event
+        log_audit_event(
+            actor=supervisor,
+            action="assign_complaint",
+            entity_type="Complaint",
+            entity_id=str(complaint.id),
+            old_value={"assigned_employee_id": None},
+            new_value={"assigned_employee_id": str(employee.id)}
+        )
+
         logger.info(
             'Complaint %s assigned to employee %s (%s) by supervisor %s',
             complaint.complaint_number, employee.id, employee.full_name, supervisor.id,
@@ -179,6 +189,7 @@ def reassign_employee_to_complaint(
 
     with transaction.atomic():
         now = datetime.now(timezone.utc)
+        old_employee_id = complaint.assigned_employee_id
 
         # Update complaint assigned employee
         complaint.assigned_employee_id = new_employee.id
@@ -209,9 +220,18 @@ def reassign_employee_to_complaint(
             created_at=now,
         )
 
+        from apps.users.audit_logger import log_audit_event
+        log_audit_event(
+            actor=supervisor,
+            action="reassign_complaint",
+            entity_type="Complaint",
+            entity_id=str(complaint.id),
+            old_value={"assigned_employee_id": str(old_employee_id) if old_employee_id else None},
+            new_value={"assigned_employee_id": str(new_employee.id)}
+        )
+
         logger.info(
             'Complaint %s reassigned to employee %s (%s) by supervisor %s',
             complaint.complaint_number, new_employee.id, new_employee.full_name, supervisor.id,
         )
         return complaint
-

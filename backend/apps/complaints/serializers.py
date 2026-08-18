@@ -109,7 +109,7 @@ class SupervisorComplaintListSerializer(serializers.ModelSerializer):
             'status', 'assigned_department_id', 'department_name',
             'assigned_employee_id', 'assigned_employee_name',
             'location_address', 'location_lat', 'location_lng',
-            'submitted_at', 'updated_at',
+            'submitted_at', 'updated_at', 'priority_category',
         ]
 
 
@@ -159,7 +159,7 @@ class ComplaintDetailSerializer(serializers.ModelSerializer):
             'location_lat', 'location_lng', 'location_address',
             'district', 'taluk', 'local_body', 'ward',
             'inconvenience_details', 'expected_solution',
-            'status',
+            'status', 'priority_category',
             'assigned_department',
             'assigned_employee',
             'expected_completion_date',
@@ -315,10 +315,15 @@ class PublicComplaintTrackingSerializer(serializers.ModelSerializer):
     """
     Publicly safe serializer for complaint tracking.
     Never includes PII, location details, internal notes, or employee information.
+    Resolves duplicate complaints to their ultimate primary complaint.
     """
     category = serializers.CharField(source='category.name', read_only=True, default=None)
-    status_history = PublicComplaintStatusHistorySerializer(many=True, read_only=True)
+    status_history = serializers.SerializerMethodField()
     resolution = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    is_duplicate = serializers.SerializerMethodField()
+    main_complaint_number = serializers.SerializerMethodField()
+    updated_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Complaint
@@ -330,11 +335,42 @@ class PublicComplaintTrackingSerializer(serializers.ModelSerializer):
             'updated_at',
             'status_history',
             'resolution',
+            'is_duplicate',
+            'main_complaint_number',
         ]
         read_only_fields = fields
 
+    def _get_target(self, obj):
+        # We need to resolve to the ultimate primary complaint if it is a duplicate
+        target = obj
+        visited = set()
+        while target.main_complaint_id:
+            if target.id in visited:
+                break
+            visited.add(target.id)
+            target = target.main_complaint
+        return target
+
+    def get_status(self, obj):
+        return self._get_target(obj).status
+
+    def get_updated_at(self, obj):
+        return self._get_target(obj).updated_at
+
+    def get_is_duplicate(self, obj):
+        return obj.main_complaint_id is not None
+
+    def get_main_complaint_number(self, obj):
+        target = self._get_target(obj)
+        return target.complaint_number if obj.id != target.id else None
+
+    def get_status_history(self, obj):
+        target = self._get_target(obj)
+        return PublicComplaintStatusHistorySerializer(target.status_history.all(), many=True).data
+
     def get_resolution(self, obj):
-        res = obj.resolutions.filter(is_final_resolution=True).order_by('-created_at').first()
+        target = self._get_target(obj)
+        res = target.resolutions.filter(is_final_resolution=True).order_by('-created_at').first()
         if res:
             return PublicComplaintResolutionSerializer(res).data
         return None

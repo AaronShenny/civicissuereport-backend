@@ -151,6 +151,16 @@ def confirm_resolution(
         if notifications:
             Notification.objects.bulk_create(notifications)
 
+        from apps.users.audit_logger import log_audit_event
+        log_audit_event(
+            actor=citizen,
+            action="confirm_resolution",
+            entity_type="Complaint",
+            entity_id=str(complaint.id),
+            old_value={"status": ComplaintStatus.RESOLVED, "closure_confirmation": ClosureConfirmation.PENDING},
+            new_value={"status": complaint.status, "closure_confirmation": complaint.closure_confirmation}
+        )
+
     logger.info(
         'Complaint %s confirmed and closed by citizen %s.',
         complaint.complaint_number, citizen.id,
@@ -247,6 +257,16 @@ def reject_resolution(
 
         if notifications:
             Notification.objects.bulk_create(notifications)
+
+        from apps.users.audit_logger import log_audit_event
+        log_audit_event(
+            actor=citizen,
+            action="reject_resolution",
+            entity_type="Complaint",
+            entity_id=str(complaint.id),
+            old_value={"status": ComplaintStatus.RESOLVED, "closure_confirmation": ClosureConfirmation.PENDING},
+            new_value={"status": complaint.status, "closure_confirmation": complaint.closure_confirmation}
+        )
 
     logger.info(
         'Complaint %s resolution rejected by citizen %s. Returned to IN_PROGRESS.',

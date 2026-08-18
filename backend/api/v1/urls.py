@@ -2,6 +2,8 @@ from django.urls import path, include
 from . import health
 from apps.complaints import views as complaint_views
 
+from apps.users.views import AuditLogListView
+
 urlpatterns = [
     path('health/', health.health_check, name='health_check'),
     path('users/', include('apps.users.urls')),
@@ -9,6 +11,9 @@ urlpatterns = [
     path('complaints/', include('apps.complaints.urls')),
     path('categories/', complaint_views.CategoryListView.as_view(), name='category-list'),
     path('categories/<int:pk>/', complaint_views.CategoryDetailView.as_view(), name='category-detail'),
+
+    # Admin actions
+    path('admin/audit-logs/', AuditLogListView.as_view(), name='admin-audit-logs'),
 
     # Supervisor queues and assignment actions
     path('supervisor/complaints/unassigned/', complaint_views.SupervisorUnassignedQueueView.as_view(), name='supervisor-unassigned-queue'),

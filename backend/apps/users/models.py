@@ -235,3 +235,40 @@ class UserPermission(models.Model):
 
     def __str__(self):
         return f'{self.user_id} / {self.permission_key} = {self.is_granted}'
+
+
+# ---------------------------------------------------------------------------
+# AuditLog
+# ---------------------------------------------------------------------------
+# Mirrors: public.audit_logs
+# managed = False - application audit trail
+# ---------------------------------------------------------------------------
+class AuditLog(models.Model):
+    """
+    Maps to public.audit_logs.
+    General administrative audit trail.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    actor = models.ForeignKey(
+        Profile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='actor_id',
+        related_name='audit_actions',
+    )
+    action = models.TextField()
+    entity_type = models.TextField()
+    entity_id = models.TextField(null=True, blank=True)
+    old_value = models.JSONField(null=True, blank=True)
+    new_value = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = 'audit_logs'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.actor_id} {self.action} {self.entity_type} {self.entity_id}"
