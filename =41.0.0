@@ -17,8 +17,8 @@ Collecting httpx==0.27.2
   Downloading httpx-0.27.2-py3-none-any.whl.metadata (7.1 kB)
 Collecting pytest
   Downloading pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
-Collecting pytest-django
-  Downloading pytest_django-4.14.0-py3-none-any.whl.metadata (8.1 kB)
+Collecting pytest-django==4.9.0
+  Downloading pytest_django-4.9.0-py3-none-any.whl.metadata (8.2 kB)
 Requirement already satisfied: cryptography in /usr/lib/python3/dist-packages (41.0.7)
 Collecting asgiref<4,>=3.8.1 (from Django==5.1.1)
   Downloading asgiref-3.12.1-py3-none-any.whl.metadata (9.4 kB)
@@ -44,32 +44,32 @@ Collecting pluggy<2,>=1.5 (from pytest)
   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
 Requirement already satisfied: pygments>=2.7.2 in /usr/lib/python3/dist-packages (from pytest) (2.17.2)
 Downloading Django-5.1.1-py3-none-any.whl (8.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.2/8.2 MB 78.2 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.2/8.2 MB 111.2 MB/s eta 0:00:00
 Downloading djangorestframework-3.15.2-py3-none-any.whl (1.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 193.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 122.6 MB/s eta 0:00:00
 Downloading django_cors_headers-4.4.0-py3-none-any.whl (12 kB)
 Downloading psycopg-3.2.3-py3-none-any.whl (197 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 197.9/197.9 kB 78.2 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 197.9/197.9 kB 68.0 MB/s eta 0:00:00
 Downloading PyJWT-2.9.0-py3-none-any.whl (22 kB)
 Downloading python_dotenv-1.0.1-py3-none-any.whl (19 kB)
 Downloading dj_database_url-2.2.0-py3-none-any.whl (7.8 kB)
 Downloading httpx-0.27.2-py3-none-any.whl (76 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 76.4/76.4 kB 30.8 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 76.4/76.4 kB 28.4 MB/s eta 0:00:00
+Downloading pytest_django-4.9.0-py3-none-any.whl (23 kB)
 Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 33.2 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 29.5 MB/s eta 0:00:00
 Downloading psycopg_binary-3.2.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 225.7 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 138.4 MB/s eta 0:00:00
 Downloading pytest-9.1.1-py3-none-any.whl (386 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 386.5/386.5 kB 119.0 MB/s eta 0:00:00
-Downloading pytest_django-4.14.0-py3-none-any.whl (27 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 386.5/386.5 kB 99.6 MB/s eta 0:00:00
 Downloading asgiref-3.12.1-py3-none-any.whl (25 kB)
 Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
 Downloading sqlparse-0.6.0-py3-none-any.whl (50 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.1/50.1 kB 19.4 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 50.1/50.1 kB 18.1 MB/s eta 0:00:00
 Downloading anyio-4.14.2-py3-none-any.whl (125 kB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 125.8/125.8 kB 48.8 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 125.8/125.8 kB 45.0 MB/s eta 0:00:00
 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
 Downloading h11-0.16.0-py3-none-any.whl (37 kB)
 Installing collected packages: sqlparse, sniffio, python-dotenv, PyJWT, psycopg-binary, psycopg, pluggy, iniconfig, h11, asgiref, anyio, pytest, httpcore, Django, pytest-django, httpx, djangorestframework, django-cors-headers, dj-database-url
-Successfully installed Django-5.1.1 PyJWT-2.9.0 anyio-4.14.2 asgiref-3.12.1 dj-database-url-2.2.0 django-cors-headers-4.4.0 djangorestframework-3.15.2 h11-0.16.0 httpcore-1.0.9 httpx-0.27.2 iniconfig-2.3.0 pluggy-1.6.0 psycopg-3.2.3 psycopg-binary-3.2.3 pytest-9.1.1 pytest-django-4.14.0 python-dotenv-1.0.1 sniffio-1.3.1 sqlparse-0.6.0
+Successfully installed Django-5.1.1 PyJWT-2.9.0 anyio-4.14.2 asgiref-3.12.1 dj-database-url-2.2.0 django-cors-headers-4.4.0 djangorestframework-3.15.2 h11-0.16.0 httpcore-1.0.9 httpx-0.27.2 iniconfig-2.3.0 pluggy-1.6.0 psycopg-3.2.3 psycopg-binary-3.2.3 pytest-9.1.1 pytest-django-4.9.0 python-dotenv-1.0.1 sniffio-1.3.1 sqlparse-0.6.0
