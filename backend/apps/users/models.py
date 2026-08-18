@@ -119,6 +119,16 @@ class Profile(models.Model):
         related_name='profiles',
     )
 
+    # FK → jurisdictions(id) — Nullable for citizens, required for supervisors in specific districts.
+    jurisdiction = models.ForeignKey(
+        'departments.Jurisdiction',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column='jurisdiction_id',
+        related_name='profiles',
+    )
+
     # Self-referential FK — ground-level employees may reference a supervisor.
     supervisor = models.ForeignKey(
         'self',

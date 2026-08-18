@@ -107,3 +107,22 @@ COMPLAINT_MAX_PHOTO_MB = int(os.environ.get('COMPLAINT_MAX_PHOTO_MB', 10))
 COMPLAINT_MAX_VIDEO_MB = int(os.environ.get('COMPLAINT_MAX_VIDEO_MB', 100))
 COMPLAINT_MAX_DOC_MB = int(os.environ.get('COMPLAINT_MAX_DOC_MB', 20))
 
+# ---------------------------------------------------------------------------
+# Phase 8: AI Severity Assessment
+# ---------------------------------------------------------------------------
+
+# Gemini API key — backend only. NEVER expose to frontend.
+# Set via environment variable GEMINI_API_KEY.
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+# The Gemini model identifier to use for severity assessment.
+# Default: gemini-3.6-flash (GA/stable model released July 21, 2026).
+# Override via AI_GEMINI_MODEL environment variable when a newer model is available.
+AI_GEMINI_MODEL = os.environ.get('AI_GEMINI_MODEL', 'gemini-3.6-flash')
+
+# Configurable confidence threshold (0–100) for routing low-confidence
+# AI classifications to classification_review_tasks for manual review.
+# NOTE: 70.0 is a documented application-level default, NOT an authoritative
+# business rule from the database schema or user stories.
+# Override via AI_CONFIDENCE_THRESHOLD environment variable.
+AI_CONFIDENCE_THRESHOLD = float(os.environ.get('AI_CONFIDENCE_THRESHOLD', 70.0))

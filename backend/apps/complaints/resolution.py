@@ -39,6 +39,7 @@ from apps.complaints.storage import (
     upload_to_storage,
 )
 from apps.users.models import Profile, Role
+from apps.complaints.closure import CLOSURE_WINDOW_DAYS
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +267,7 @@ def resolve_complaint(
         # 1. Update complaint status to RESOLVED and set closure confirmation window
         complaint.status = ComplaintStatus.RESOLVED
         complaint.closure_confirmation = ClosureConfirmation.PENDING
-        complaint.closure_due_at = now + timedelta(days=7)
+        complaint.closure_due_at = now + timedelta(days=CLOSURE_WINDOW_DAYS)
         complaint.updated_at = now
         complaint.save(update_fields=['status', 'closure_confirmation', 'closure_due_at', 'updated_at'])
 

@@ -328,4 +328,18 @@ def submit_complaint(
             len(failed_paths), complaint.complaint_number,
         )
 
+    # Phase 8: Trigger AI severity assessment in background.
+    # The thread runs independently of this HTTP request.
+    # Failure in the AI thread does NOT affect the complaint or this response.
+    try:
+        from apps.complaints.ai.service import run_severity_assessment_in_background
+        run_severity_assessment_in_background(str(complaint.id))
+    except Exception as exc:
+        # Importing or launching the thread failed — log and continue.
+        # The complaint is already committed and safe.
+        logger.error(
+            'Failed to launch AI severity assessment thread for complaint %s: %s',
+            complaint.complaint_number, exc,
+        )
+
     return complaint

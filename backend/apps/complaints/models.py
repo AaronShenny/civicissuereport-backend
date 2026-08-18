@@ -102,6 +102,13 @@ class DeliveryStatusType(models.TextChoices):
     FAILED = 'failed', 'Failed'
 
 
+class ReviewStatusType(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    IN_REVIEW = 'in_review', 'In Review'
+    COMPLETED = 'completed', 'Completed'
+    DISMISSED = 'dismissed', 'Dismissed'
+
+
 # ---------------------------------------------------------------------------
 # ComplaintCategory
 # ---------------------------------------------------------------------------
@@ -542,4 +549,137 @@ class ComplaintResolution(models.Model):
         return f'{self.complaint_id}: {"Final Resolution" if self.is_final_resolution else "Progress Update"} by {self.updated_by_id}'
 
 
+# ---------------------------------------------------------------------------
+# ComplaintClassification (Phase 8: AI Severity Assessment)
+# ---------------------------------------------------------------------------
+
+class ComplaintClassification(models.Model):
+    """
+    Maps to public.complaint_classifications.
+
+    Stores every AI classification run and manual override.
+    Records are NEVER overwritten — each AI run inserts a new row.
+    The latest record (by classified_at) is the authoritative classification.
+
+    Phase 8 populates:
+        severity_level, severity_score, confidence_score, model_name,
+        model_version, is_manual_override=False.
+
+    Future phases may populate:
+        detected_category_id (AI category classification — Phase 9+).
+    """
+
+    id = models.UUIDField(primary_key=True)
+    complaint = models.ForeignKey(
+        Complaint,
+        on_delete=models.CASCADE,
+        db_column='complaint_id',
+        related_name='classifications',
+    )
+    # detected_category_id is intentionally retained for future category AI.
+    # Phase 8 inserts NULL here.
+    detected_category = models.ForeignKey(
+        ComplaintCategory,
+        on_delete=models.SET_NULL,
+        db_column='detected_category_id',
+        null=True,
+        blank=True,
+        related_name='ai_classifications',
+    )
+    confidence_score = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    severity_level = models.CharField(
+        max_length=16,
+        choices=SeverityLevel.choices,
+        null=True,
+        blank=True,
+    )
+    severity_score = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True
+    )
+    model_name = models.TextField(null=True, blank=True)
+    model_version = models.TextField(null=True, blank=True)
+    is_manual_override = models.BooleanField(default=False)
+    classified_by = models.ForeignKey(
+        Profile,
+        on_delete=models.SET_NULL,
+        db_column='classified_by',
+        null=True,
+        blank=True,
+        related_name='performed_classifications',
+    )
+    classified_at = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'complaint_classifications'
+
+    def __str__(self):
+        return (
+            f'{self.complaint_id}: severity={self.severity_level} '
+            f'score={self.severity_score} confidence={self.confidence_score} '
+            f'at {self.classified_at}'
+        )
+
+
+# ---------------------------------------------------------------------------
+# ClassificationReviewTask (Phase 8: low-confidence review routing)
+# ---------------------------------------------------------------------------
+
+class ClassificationReviewTask(models.Model):
+    """
+    Maps to public.classification_review_tasks.
+
+    Created automatically when an AI classification confidence score falls
+    below the configured AI_CONFIDENCE_THRESHOLD.
+
+    The review workflow UI is deferred to a later phase.
+    """
+
+    id = models.UUIDField(primary_key=True)
+    complaint = models.ForeignKey(
+        Complaint,
+        on_delete=models.CASCADE,
+        db_column='complaint_id',
+        related_name='review_tasks',
+    )
+    classification = models.ForeignKey(
+        ComplaintClassification,
+        on_delete=models.CASCADE,
+        db_column='classification_id',
+        related_name='review_tasks',
+    )
+    assigned_to = models.ForeignKey(
+        Profile,
+        on_delete=models.SET_NULL,
+        db_column='assigned_to',
+        null=True,
+        blank=True,
+        related_name='assigned_review_tasks',
+    )
+    reason = models.TextField()
+    status = models.CharField(
+        max_length=16,
+        choices=ReviewStatusType.choices,
+        default=ReviewStatusType.PENDING,
+    )
+    reviewed_by = models.ForeignKey(
+        Profile,
+        on_delete=models.SET_NULL,
+        db_column='reviewed_by',
+        null=True,
+        blank=True,
+        related_name='completed_review_tasks',
+    )
+    review_remarks = models.TextField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'classification_review_tasks'
+
+    def __str__(self):
+        return f'ReviewTask for {self.complaint_id} [{self.status}]'
 

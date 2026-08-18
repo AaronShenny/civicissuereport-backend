@@ -17,7 +17,7 @@ Covers:
 
 import uuid
 import pytest
-from datetime import date, timedelta
+from datetime import datetime, timezone, date, timedelta
 from unittest.mock import patch, MagicMock
 from contextlib import nullcontext
 from django.core.exceptions import ValidationError
@@ -459,6 +459,47 @@ class TestResolutionWorkflow:
                 resolution_details='Attempted resolution without proof',
                 pending_attachments=[],
             )
+
+    # 18. Resolution sets closure_due_at using centralized CLOSURE_WINDOW_DAYS
+    def test_configured_closure_window_days_is_used(self):
+        dept = make_mock_department()
+        employee = make_mock_profile(Role.GROUND_LEVEL_EMPLOYEE, dept_id=dept.id)
+        complaint = make_mock_complaint(
+            dept_id=dept.id,
+            employee_id=employee.id,
+            status=ComplaintStatus.IN_PROGRESS,
+        )
+
+        proof_att = PendingAttachment(
+            file_bytes=b'proof bytes',
+            mime_type='image/jpeg',
+            file_type='photo',
+            original_name='proof.jpg',
+            size_bytes=100,
+        )
+
+        with patch('apps.complaints.resolution.CLOSURE_WINDOW_DAYS', 14), \
+             patch('apps.complaints.resolution.ComplaintResolution.objects.create'), \
+             patch('apps.complaints.resolution.ComplaintStatusHistory.objects.create'), \
+             patch('apps.complaints.resolution.ComplaintAttachment.objects.create'), \
+             patch('apps.complaints.resolution.upload_to_storage', return_value=True), \
+             patch('apps.complaints.resolution.Profile.objects.filter', return_value=[]), \
+             patch('apps.complaints.resolution.Notification.objects.bulk_create'):
+
+            now_before = datetime.now(timezone.utc)
+            _, updated_complaint = resolve_complaint(
+                user=employee,
+                complaint=complaint,
+                resolution_details='Pothole filled and sealed completely.',
+                pending_attachments=[proof_att],
+            )
+            now_after = datetime.now(timezone.utc)
+
+            expected_due_min = now_before + timedelta(days=14)
+            expected_due_max = now_after + timedelta(days=14)
+
+            assert updated_complaint.closure_due_at >= expected_due_min
+            assert updated_complaint.closure_due_at <= expected_due_max
 
 
 # ===========================================================================
