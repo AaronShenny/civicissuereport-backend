@@ -20,15 +20,6 @@ import SupervisorComplaints from './pages/SupervisorComplaints';
 import DepartmentComplaints from './pages/DepartmentComplaints';
 import AdminOverview from './pages/AdminOverview';
 
-// Legacy AssetFlow Pages
-import Assets from './pages/Assets';
-import AssetDetail from './pages/AssetDetail';
-import AssetForm from './pages/AssetForm';
-import Categories from './pages/Categories';
-import Assignments from './pages/Assignments';
-import Maintenance from './pages/Maintenance';
-import Reports from './pages/Reports';
-import Users from './pages/Users';
 import Settings from './pages/Settings';
 
 export const router = createBrowserRouter([
@@ -62,17 +53,6 @@ export const router = createBrowserRouter([
       { path: 'supervisor/complaints', element: <SupervisorComplaints /> },
       { path: 'department/complaints', element: <DepartmentComplaints /> },
       { path: 'admin/overview', element: <AdminOverview /> },
-
-      // Legacy AssetFlow Routes
-      { path: 'assets', element: <Assets /> },
-      { path: 'assets/new', element: <AssetForm /> },
-      { path: 'assets/:id', element: <AssetDetail /> },
-      { path: 'assets/:id/edit', element: <AssetForm /> },
-      { path: 'categories', element: <Categories /> },
-      { path: 'assignments', element: <Assignments /> },
-      { path: 'maintenance', element: <Maintenance /> },
-      { path: 'reports', element: <Reports /> },
-      { path: 'users', element: <Users /> },
       { path: 'settings', element: <Settings /> },
     ],
   },
