@@ -10,13 +10,6 @@ const pageTitles = {
   '/supervisor/unassigned': 'Unassigned Queue',
   '/supervisor/complaints': 'Department Complaints',
   '/admin/overview':        'System Overview',
-  // Legacy
-  '/assets':      'Assets',
-  '/categories':  'Categories',
-  '/assignments': 'Assignments',
-  '/maintenance': 'Maintenance',
-  '/reports':     'Reports',
-  '/users':       'Users & Team',
   '/settings':    'Settings',
 };
 
@@ -33,7 +26,7 @@ export default function Header() {
   // Match longest prefix
   const title = Object.entries(pageTitles)
     .sort((a, b) => b[0].length - a[0].length)
-    .find(([path]) => pathname.startsWith(path))?.[1] ?? 'AssetFlow';
+    .find(([path]) => pathname.startsWith(path))?.[1] ?? 'CivicConnect';
 
   return (
     <header className="top-header">

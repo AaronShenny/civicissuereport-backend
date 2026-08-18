@@ -734,9 +734,17 @@ class TestAISeveritySecurityEnforcement(TestCase):
     def test_severity_fields_read_only_in_detail_serializer(self):
         """severity_level and severity_score must be read-only in the detail view."""
         from apps.complaints.serializers import ComplaintDetailSerializer
+        serializer = ComplaintDetailSerializer()
         meta = ComplaintDetailSerializer.Meta
-        # ComplaintDetailSerializer.Meta.read_only_fields covers all fields
-        self.assertEqual(meta.read_only_fields, '__all__')
+        # DRF requires read_only_fields to be a list/tuple (not '__all__').
+        self.assertIsInstance(meta.read_only_fields, (list, tuple))
+        # Detail serializer is output-only: every exposed field must be read-only.
+        self.assertEqual(set(meta.fields), set(meta.read_only_fields))
+        # No writable fields should remain, including severity-related fields.
+        self.assertEqual(
+            [name for name, field in serializer.fields.items() if not field.read_only],
+            [],
+        )
 
     def test_gemini_api_key_not_in_provider_request_body(self):
         """
