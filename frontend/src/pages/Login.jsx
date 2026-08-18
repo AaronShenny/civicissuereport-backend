@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn } = useAuth();
+  
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const from = location.state?.from?.pathname || '/dashboard';
+
   const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
       setError('Please fill in all fields.');
@@ -18,11 +24,14 @@ export default function Login() {
     }
     setError('');
     setLoading(true);
-    // Mock auth — any credentials work
-    setTimeout(() => {
+    
+    try {
+      await signIn(form.email, form.password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.message || 'Failed to sign in.');
       setLoading(false);
-      navigate('/dashboard');
-    }, 900);
+    }
   };
 
   return (
@@ -30,7 +39,7 @@ export default function Login() {
       <button
         className="btn btn-ghost btn-icon"
         title="Go Back"
-        onClick={() => navigate(-1)}
+        onClick={() => navigate('/')}
         style={{ position: 'absolute', top: 'var(--sp-xl)', left: 'var(--sp-xl)' }}
       >
         <ArrowLeftIcon size={24} />
@@ -122,7 +131,7 @@ export default function Login() {
           }}
         >
           Don&apos;t have an account?{' '}
-          <button className="btn btn-ghost btn-sm" style={{ padding: 0, height: 'auto', fontSize: 13, color: 'var(--primary)', fontWeight: 600 }}>
+          <button type="button" className="btn btn-ghost btn-sm" style={{ padding: 0, height: 'auto', fontSize: 13, color: 'var(--primary)', fontWeight: 600 }}>
             Contact your admin
           </button>
         </p>

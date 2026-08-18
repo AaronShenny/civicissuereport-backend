@@ -11,6 +11,7 @@ Security rules reflected in serializer design:
 """
 
 from rest_framework import serializers
+from apps.complaints.location import extract_coordinates_from_url, LocationExtractionError
 from apps.complaints.models import (
     Complaint,
     ComplaintCategory,
@@ -189,10 +190,12 @@ class ComplaintSubmitSerializer(serializers.Serializer):
 
     category_id = serializers.IntegerField()
     description = serializers.CharField(min_length=10, max_length=5000)
-    latitude = serializers.FloatField(min_value=-90.0, max_value=90.0)
-    longitude = serializers.FloatField(min_value=-180.0, max_value=180.0)
+    state = serializers.CharField(min_length=2, max_length=100)
+    district = serializers.CharField(min_length=2, max_length=100)
+    google_maps_url = serializers.URLField(max_length=2000)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
     location_address = serializers.CharField(required=False, allow_blank=True, max_length=500)
-    district = serializers.CharField(required=False, allow_blank=True, max_length=100)
     taluk = serializers.CharField(required=False, allow_blank=True, max_length=100)
     local_body = serializers.CharField(required=False, allow_blank=True, max_length=100)
     ward = serializers.CharField(required=False, allow_blank=True, max_length=100)
@@ -210,6 +213,17 @@ class ComplaintSubmitSerializer(serializers.Serializer):
             )
         self._category = cat
         return value
+
+    def validate(self, attrs):
+        google_maps_url = attrs.get('google_maps_url')
+        if google_maps_url:
+            try:
+                lat, lng = extract_coordinates_from_url(google_maps_url)
+                attrs['latitude'] = lat
+                attrs['longitude'] = lng
+            except LocationExtractionError as e:
+                raise serializers.ValidationError({"google_maps_url": str(e)})
+        return attrs
 
     @property
     def category(self):

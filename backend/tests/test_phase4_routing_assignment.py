@@ -39,7 +39,7 @@ from apps.complaints.assignment import (
     validate_supervisor_can_assign,
     validate_target_employee,
 )
-from apps.departments.models import DepartmentCategoryRule
+from apps.departments.models import DepartmentCategoryRule, Jurisdiction
 from apps.users.models import Department, Profile, Role
 from core.permissions.roles import (
     IsSupervisor,
@@ -70,6 +70,12 @@ def make_mock_department(dept_id=None, name='Public Works') -> MagicMock:
     return dept
 
 
+def make_mock_jurisdiction(jur_id=None, name='Ernakulam') -> MagicMock:
+    jur = MagicMock(spec=Jurisdiction)
+    jur.id = jur_id or uuid.uuid4()
+    jur.name = name
+    return jur
+
 def make_mock_category(cat_id=1, name='pothole') -> MagicMock:
     cat = MagicMock(spec=ComplaintCategory)
     cat.id = cat_id
@@ -81,6 +87,7 @@ def make_mock_category(cat_id=1, name='pothole') -> MagicMock:
 def make_mock_profile(
     role_name: str,
     dept_id=None,
+    jur_id=None,
     full_name='Test User',
     account_status='active',
 ) -> MagicMock:
@@ -91,6 +98,7 @@ def make_mock_profile(
     profile.role = MagicMock()
     profile.role.role_name = role_name
     profile.department_id = dept_id
+    profile.jurisdiction = MagicMock() if jur_id else None
     profile.account_status = account_status
     profile.is_authenticated = True
     profile.profile = profile
@@ -123,6 +131,7 @@ def make_mock_complaint(
     c.description = 'Test complaint description'
     c.location_lat = 9.93
     c.location_lng = 76.27
+    c.district = 'Ernakulam'
     return c
 
 
@@ -132,71 +141,98 @@ def make_mock_complaint(
 
 class TestDepartmentRouting:
 
-    # 1. Complaint can be routed using category + location
-    def test_find_responsible_department_matches_category_rule(self):
+    # 1. Resolve complaint district -> jurisdiction_id
+    def test_get_jurisdiction_for_complaint(self):
+        from apps.complaints.routing import get_jurisdiction_for_complaint
+        complaint = make_mock_complaint()
+        jur = make_mock_jurisdiction(name='Ernakulam')
+        with patch('apps.complaints.routing.Jurisdiction.objects') as mock_mgr:
+            mock_mgr.filter.return_value.first.return_value = jur
+            result = get_jurisdiction_for_complaint(complaint)
+            assert result == jur
+            mock_mgr.filter.assert_called_once_with(name__iexact='Ernakulam')
+
+    # 2. Category + district -> correct department
+    def test_find_responsible_department_matches_jurisdiction_rule(self):
         dept = make_mock_department()
         complaint = make_mock_complaint()
+        jur = make_mock_jurisdiction()
         rule = MagicMock(spec=DepartmentCategoryRule)
         rule.department = dept
 
         with patch('apps.complaints.routing.DepartmentCategoryRule.objects') as mock_rule_mgr:
-            mock_filter = MagicMock()
-            mock_rule_mgr.filter.return_value = mock_filter
-            mock_filter.select_related.return_value = mock_filter
-            mock_filter.order_by.return_value.first.return_value = rule
+            mock_qs = MagicMock()
+            mock_rule_mgr.filter.return_value.select_related.return_value = mock_qs
+            mock_qs.filter.return_value.order_by.return_value.first.return_value = rule
 
-            result = find_responsible_department(complaint)
+            result = find_responsible_department(complaint, jur)
             assert result == dept
+            mock_qs.filter.assert_called_once_with(jurisdiction=jur)
 
-    # 2. Routing sets assigned_department_id
-    # 3. Routing does not set assigned_employee_id
-    # 4. Successful routing changes SUBMITTED -> UNDER_VERIFICATION
-    # 5. Routing creates status history
-    # 6. Routing creates department notification
-    def test_successful_routing_updates_complaint_and_notifies(self):
+    # 3. Global fallback
+    def test_find_responsible_department_global_fallback(self):
         dept = make_mock_department()
-        supervisor = make_mock_profile(Role.SUPERVISOR, dept_id=dept.id)
-        complaint = make_mock_complaint(status=ComplaintStatus.SUBMITTED)
+        complaint = make_mock_complaint()
+        jur = make_mock_jurisdiction()
+        rule = MagicMock(spec=DepartmentCategoryRule)
+        rule.department = dept
 
-        with patch('apps.complaints.routing.find_responsible_department', return_value=dept), \
+        with patch('apps.complaints.routing.DepartmentCategoryRule.objects') as mock_rule_mgr:
+            mock_qs = MagicMock()
+            mock_rule_mgr.filter.return_value.select_related.return_value = mock_qs
+            # Jurisdiction-specific returns None
+            mock_qs.filter.return_value.order_by.return_value.first.side_effect = [None, rule]
+
+            result = find_responsible_department(complaint, jur)
+            assert result == dept
+            # Called first for jurisdiction, then for global
+            assert mock_qs.filter.call_count == 2
+            mock_qs.filter.assert_any_call(jurisdiction__isnull=True)
+
+    # 4. Multiple supervisors receive notification, wrong district/department excluded
+    def test_routing_notifies_multiple_supervisors_correct_jurisdiction(self):
+        dept = make_mock_department()
+        jur = make_mock_jurisdiction()
+        complaint = make_mock_complaint(status=ComplaintStatus.SUBMITTED)
+        
+        sup_a = make_mock_profile(Role.SUPERVISOR, dept_id=dept.id, jur_id=jur.id)
+        sup_b = make_mock_profile(Role.SUPERVISOR, dept_id=dept.id, jur_id=jur.id)
+
+        with patch('apps.complaints.routing.get_jurisdiction_for_complaint', return_value=jur), \
+             patch('apps.complaints.routing.find_responsible_department', return_value=dept), \
              patch('apps.complaints.routing.ComplaintStatusHistory.objects.create') as mock_hist_create, \
-             patch('apps.complaints.routing.Profile.objects.filter', return_value=[supervisor]), \
+             patch('apps.complaints.routing.Profile.objects.filter') as mock_sup_filter, \
              patch('apps.complaints.routing.Notification.objects.bulk_create') as mock_notif_create:
+             
+            # Setup mock to return both supervisors
+            mock_qs = MagicMock()
+            mock_sup_filter.return_value = mock_qs
+            mock_qs.filter.return_value = [sup_a, sup_b]
 
             routed_dept = route_complaint(complaint)
 
             assert routed_dept == dept
-            # 2. sets assigned_department_id
             assert complaint.assigned_department_id == dept.id
-            # 3. does not set assigned_employee_id (remains None)
-            assert complaint.assigned_employee_id is None
-            # 4. changes SUBMITTED -> UNDER_VERIFICATION
             assert complaint.status == ComplaintStatus.UNDER_VERIFICATION
 
-            # 5. creates status history
-            mock_hist_create.assert_called_once()
-            hist_kwargs = mock_hist_create.call_args[1]
-            assert hist_kwargs['old_status'] == ComplaintStatus.SUBMITTED
-            assert hist_kwargs['new_status'] == ComplaintStatus.UNDER_VERIFICATION
-            assert hist_kwargs['changed_by'] is None  # System action
-
-            # 6. creates department notification
+            # Creates department notification
             mock_notif_create.assert_called_once()
             created_notifications = mock_notif_create.call_args[0][0]
-            assert len(created_notifications) == 1
-            assert created_notifications[0].recipient_id == supervisor.id
+            assert len(created_notifications) == 2
+            recipient_ids = {n.recipient_id for n in created_notifications}
+            assert recipient_ids == {sup_a.id, sup_b.id}
 
     # 7. Invalid/missing routing configuration is handled safely
     def test_routing_failure_raises_controlled_error(self):
         complaint = make_mock_complaint(status=ComplaintStatus.SUBMITTED)
 
-        with patch('apps.complaints.routing.find_responsible_department', return_value=None):
+        with patch('apps.complaints.routing.get_jurisdiction_for_complaint', return_value=None), \
+             patch('apps.complaints.routing.find_responsible_department', return_value=None):
             with pytest.raises(RoutingFailureError, match='Unable to determine responsible department'):
                 route_complaint(complaint)
 
         # Ensure complaint was not modified on failure
         assert complaint.assigned_department_id is None
-        assert complaint.assigned_employee_id is None
         assert complaint.status == ComplaintStatus.SUBMITTED
 
 

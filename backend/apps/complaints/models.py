@@ -184,6 +184,8 @@ class Complaint(models.Model):
     location_address = models.TextField(null=True, blank=True)
 
     district = models.TextField(null=True, blank=True)
+    state = models.TextField(null=True, blank=True)
+    google_maps_url = models.TextField(null=True, blank=True)
     taluk = models.TextField(null=True, blank=True)
     local_body = models.TextField(null=True, blank=True)
     ward = models.TextField(null=True, blank=True)

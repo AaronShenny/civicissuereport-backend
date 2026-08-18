@@ -2112,3 +2112,10 @@ ul, ol { list-style: none; }
   .page-content { padding: var(--sp-md); }
   .top-header { padding: 0 var(--sp-md); }
 }
+  
+@media (max-width: 768px) { .desktop-only { display: none !important; } }  
+@media (min-width: 769px) { .mobile-only { display: none !important; } } 
+  
+.timeline { border-left: 2px solid var(--border); padding-left: var(--sp-md); position: relative; display: flex; flexDirection: column; gap: var(--sp-md); }  
+.timeline-item { position: relative; margin-bottom: var(--sp-md); }  
+.timeline-dot { position: absolute; left: calc(-1 * var(--sp-md) - 6px); top: 4px; width: 10px; height: 10px; border-radius: 50%; z-index: 2; } 

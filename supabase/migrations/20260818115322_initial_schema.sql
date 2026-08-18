@@ -1093,9 +1093,6 @@ CREATE INDEX dcr_jurisdiction_id_idx            ON public.department_category_ru
 -- 10. STORAGE — complaint-media bucket + policies
 -- =============================================================================
 
--- Enable RLS on storage.objects (required for Supabase Storage policies).
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
 -- Create private bucket.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('complaint-media', 'complaint-media', false)

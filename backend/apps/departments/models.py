@@ -51,6 +51,14 @@ class DepartmentCategoryRule(models.Model):
         db_column='category_id',
         related_name='department_rules',
     )
+    jurisdiction = models.ForeignKey(
+        Jurisdiction,
+        on_delete=models.CASCADE,
+        db_column='jurisdiction_id',
+        null=True,
+        blank=True,
+        related_name='category_rules',
+    )
     priority_rank = models.IntegerField(default=1)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField()
@@ -58,7 +66,7 @@ class DepartmentCategoryRule(models.Model):
     class Meta:
         managed = False
         db_table = 'department_category_rules'
-        unique_together = [('department', 'category')]
+        unique_together = ('department', 'category', 'jurisdiction')
 
     def __str__(self):
         return f'{self.category.name} → {self.department.name} (rank {self.priority_rank})'

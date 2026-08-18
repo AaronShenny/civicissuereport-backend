@@ -1,61 +1,57 @@
-# Authentication & Authorization
+# Supabase ES256 Authentication
 
-## Authentication Flow
+This document explains the authentication flow in the Civic Issue Report Django backend.
 
-```
-User logs in via React + Supabase JS
-    ↓
-Supabase Auth issues JWT (Access Token)
-    ↓
-React includes token: Authorization: Bearer <token>
-    ↓
-Django DRF: SupabaseAuthentication.authenticate()
-    ↓
-Verify JWT signature using SUPABASE_JWT_SECRET (HS256)
-    ↓
-Extract user UUID from 'sub' claim
-    ↓
-Load public.profiles WHERE id = <uuid>
-    + select_related: role, department, supervisor
-    ↓
-Check account_status == 'active'  (inactive → 401)
-    ↓
-request.user = Profile instance
-    ↓
-DRF permission_classes run against the loaded Profile
-```
+## Overview
 
-## Role Hierarchy
+The application relies completely on Supabase Auth for identity management and does not issue its own tokens. The Django backend uses a custom DRF authentication class (`core.authentication.supabase.SupabaseAuthentication`) to cryptographically verify JSON Web Tokens (JWTs) provided by clients.
 
-```
-system_admin          ← full system access, no dept restriction
-department_admin      ← full dept access within their department
-supervisor            ← team-level access within their department
-ground_level_employee ← assigned-complaint access only (Phase 3+)
-citizen               ← own complaints only
-```
+## ES256 & JWKS Verification (Primary)
 
-## Permission Classes (core/permissions/roles.py)
+Live Supabase projects issue JWTs signed with Elliptic Curve Cryptography (`ES256`).
 
-| Class | Description |
-|---|---|
-| `IsAuthenticatedViaSupabase` | Valid JWT + active profile required |
-| `IsCitizen` | citizen role |
-| `IsGroundLevelEmployee` | ground_level_employee role |
-| `IsSupervisor` | supervisor role |
-| `IsDepartmentAdmin` | department_admin role |
-| `IsSystemAdmin` | system_admin role |
-| `IsStaffMember` | any non-citizen role |
-| `IsDepartmentStaff` | employee/supervisor/dept-admin |
-| `IsSupervisorOrAbove` | supervisor, dept-admin, system-admin |
-| `IsDepartmentAdminOrSystemAdmin` | dept-admin or system-admin |
-| `IsSameDepartment` | object-level: same dept as caller |
-| `IsOwnProfile` | object-level: own profile or system-admin |
+To verify these tokens securely:
+1. The backend extracts the `Bearer` token from the `Authorization` header.
+2. The unverified JWT header is inspected to determine the signature algorithm (`alg`) and Key ID (`kid`).
+3. If `alg == "ES256"`, the backend fetches the public JSON Web Key Set (JWKS) directly from the Supabase project endpoint (e.g., `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json`).
+4. The backend constructs the EC public key using the JWK matching the `kid`.
+5. The JWT signature is verified using `ES256` alongside `audience` and `issuer` claims.
 
-## Rules
+### Key Caching
 
-- **Role values come exclusively from the database** — never from the request body.
-- **Department values come exclusively from the database** — never from the request body.
-- Inactive accounts are rejected at the authentication layer before any permission check runs.
-- Ground-Level Employees access complaints only when `complaint.assigned_employee_id == user.id` (enforced in Phase 3).
+To prevent network overhead and rate limits:
+- The JWKS is cached in process memory by `PyJWKClient`.
+- The cache has a TTL configured by `SUPABASE_JWKS_CACHE_TTL` (default 3600 seconds).
+- The cache automatically invalidates/refreshes if a token presents an unknown `kid`, allowing seamless key rotation by Supabase without restarting the Django service.
 
+## HS256 Verification (Legacy/Fallback)
+
+If a token is signed with `HS256`, the backend falls back to validating the token using the symmetric `SUPABASE_JWT_SECRET`.
+This is retained strictly for backward compatibility with older configurations or local mock testing that may not provide a JWKS endpoint.
+
+**Note:** If the explicit `SUPABASE_JWT_SECRET` is not set in the environment, the backend will aggressively reject any HS256 tokens.
+
+## Audience & Issuer Validation
+
+- **Audience**: Hardcoded to `"authenticated"`.
+- **Issuer**: Explicitly validated against `SUPABASE_JWT_ISSUER` (derived securely from `SUPABASE_URL`). This prevents cross-project tokens from being falsely accepted.
+
+## Failure Behavior
+
+The backend adheres to a "fail-closed" model. If any of the following occur, a `401 Unauthorized` error is returned immediately:
+- The `Authorization` header is missing or malformed.
+- The token algorithm is not explicitly allowed (`HS256` or `ES256`).
+- The token is expired (`exp`).
+- The JWT signature is invalid.
+- The `kid` is missing or cannot be matched against the live JWKS.
+- The audience or issuer does not match.
+
+No internal cryptography exceptions or cache states are ever exposed to the client.
+
+## Environment Variables
+
+- `SUPABASE_URL`: Required. Base URL of the Supabase project.
+- `SUPABASE_JWKS_URL`: Optional. Derived from `SUPABASE_URL`.
+- `SUPABASE_JWT_ISSUER`: Optional. Derived from `SUPABASE_URL`.
+- `SUPABASE_JWKS_CACHE_TTL`: Optional. Time in seconds to cache the JWKS payload. Default 3600.
+- `SUPABASE_JWT_SECRET`: Required ONLY for HS256 support.

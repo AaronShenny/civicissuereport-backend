@@ -94,8 +94,9 @@ class TestComplaintSubmission:
         data = {
             'description': 'Large pothole on main road causing accidents.',
             'category_id': 1,
-            'latitude': 9.93,
-            'longitude': 76.27,
+            'google_maps_url': '9.93,76.27',
+            'state': 'Kerala',
+            'district': 'Ernakulam',
         }
         cat = make_mock_category()
         with patch('apps.complaints.services.validate_category', return_value=(cat, [])):
@@ -107,8 +108,9 @@ class TestComplaintSubmission:
         data = {
             'description': '   ',
             'category_id': 1,
-            'latitude': 9.93,
-            'longitude': 76.27,
+            'google_maps_url': '9.93,76.27',
+            'state': 'Kerala',
+            'district': 'Ernakulam',
         }
         cat = make_mock_category()
         with patch('apps.complaints.services.validate_category', return_value=(cat, [])):
@@ -195,6 +197,9 @@ class TestComplaintCreation:
         validated_data = {
             'description': 'A pothole near the market.',
             'category': category,
+            'google_maps_url': '9.93,76.27',
+            'state': 'Kerala',
+            'district': 'Ernakulam',
             'latitude': 9.93,
             'longitude': 76.27,
             'location_address': '1 Main St',
@@ -219,6 +224,9 @@ class TestComplaintCreation:
         validated_data = {
             'description': 'Road damage near school.',
             'category': category,
+            'google_maps_url': '9.93,76.27',
+            'state': 'Kerala',
+            'district': 'Ernakulam',
             'latitude': 9.93,
             'longitude': 76.27,
         }
@@ -266,7 +274,7 @@ class TestSubmissionValidation:
     def test_empty_description_rejected(self):
         from apps.complaints.services import validate_submission_data
         cat = make_mock_category()
-        data = {'description': '', 'category_id': 1, 'latitude': 9.0, 'longitude': 76.0}
+        data = {'description': '', 'category_id': 1, 'google_maps_url': '9.0,76.0', 'state': 'Kerala', 'district': 'Ernakulam'}
         with patch('apps.complaints.services.validate_category', return_value=(cat, [])):
             errors = validate_submission_data(data, [])
         assert any('description' in e for e in errors)
@@ -274,7 +282,7 @@ class TestSubmissionValidation:
     def test_whitespace_only_description_rejected(self):
         from apps.complaints.services import validate_submission_data
         cat = make_mock_category()
-        data = {'description': '   \t\n  ', 'category_id': 1, 'latitude': 9.0, 'longitude': 76.0}
+        data = {'description': '   \t\n  ', 'category_id': 1, 'google_maps_url': '9.0,76.0', 'state': 'Kerala', 'district': 'Ernakulam'}
         with patch('apps.complaints.services.validate_category', return_value=(cat, [])):
             errors = validate_submission_data(data, [])
         assert any('description' in e for e in errors)
@@ -316,6 +324,59 @@ class TestSubmissionValidation:
         errors = validate_location(9.93, 76.27)
         assert errors == []
 
+class TestLocationExtractor:
+    def test_extract_short_url(self):
+        from apps.complaints.location import extract_coordinates_from_url
+        with patch('urllib.request.urlopen') as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.url = 'https://www.google.com/maps/place/12.34,56.78'
+            mock_urlopen.return_value.__enter__.return_value = mock_resp
+            lat, lng = extract_coordinates_from_url('https://maps.app.goo.gl/abcd')
+            assert lat == 12.34
+            assert lng == 56.78
+
+    def test_extract_place_url(self):
+        from apps.complaints.location import extract_coordinates_from_url
+        url = 'https://www.google.com/maps/place/Some+Place/@12.345,67.890,15z/data=!3m1!4b1!4m6!3m5!1s0x0:0x0!7e2!8m2!3d12.345!4d67.890'
+        lat, lng = extract_coordinates_from_url(url)
+        assert lat == 12.345
+        assert lng == 67.890
+
+    def test_extract_search_url(self):
+        from apps.complaints.location import extract_coordinates_from_url
+        url = 'https://www.google.com/maps/search/12.345,+67.890'
+        lat, lng = extract_coordinates_from_url(url)
+        assert lat == 12.345
+        assert lng == 67.890
+
+    def test_extract_at_url(self):
+        from apps.complaints.location import extract_coordinates_from_url
+        url = 'https://www.google.com/maps/@12.345,67.890,15z'
+        lat, lng = extract_coordinates_from_url(url)
+        assert lat == 12.345
+        assert lng == 67.890
+
+    def test_extract_coordinate_pair(self):
+        from apps.complaints.location import extract_coordinates_from_url
+        lat, lng = extract_coordinates_from_url('12.345, 67.890')
+        assert lat == 12.345
+        assert lng == 67.890
+        
+        lat, lng = extract_coordinates_from_url('-12.345, -67.890')
+        assert lat == -12.345
+        assert lng == -67.890
+
+    def test_invalid_url_rejected(self):
+        from apps.complaints.location import extract_coordinates_from_url, LocationExtractionError
+        with pytest.raises(LocationExtractionError):
+            extract_coordinates_from_url('https://example.com')
+
+    def test_invalid_coordinates_rejected(self):
+        from apps.complaints.location import extract_coordinates_from_url, LocationExtractionError
+        with pytest.raises(LocationExtractionError):
+            extract_coordinates_from_url('91.0, 67.890')
+
+
 
 # ===========================================================================
 # 14–15. Attachment requirement
@@ -329,8 +390,9 @@ class TestAttachmentRequirement:
         data = {
             'description': 'A drainage blockage.',
             'category_id': 2,
-            'latitude': 9.93,
-            'longitude': 76.27,
+            'google_maps_url': '9.93,76.27',
+            'state': 'Kerala',
+            'district': 'Ernakulam',
         }
         cat = make_mock_category(requires_attachment=True)
         with patch('apps.complaints.services.validate_category', return_value=(cat, [])):
@@ -343,8 +405,9 @@ class TestAttachmentRequirement:
         data = {
             'description': 'A pothole near the bus stop.',
             'category_id': 1,
-            'latitude': 9.93,
-            'longitude': 76.27,
+            'google_maps_url': '9.93,76.27',
+            'state': 'Kerala',
+            'district': 'Ernakulam',
         }
         cat = make_mock_category(requires_attachment=False)
         with patch('apps.complaints.services.validate_category', return_value=(cat, [])):

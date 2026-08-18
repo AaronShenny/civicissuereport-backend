@@ -98,6 +98,10 @@ CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
 SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET')
+# JWKS for ES256 tokens
+SUPABASE_JWKS_URL = os.environ.get('SUPABASE_JWKS_URL', f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json" if SUPABASE_URL else None)
+SUPABASE_JWT_ISSUER = os.environ.get('SUPABASE_JWT_ISSUER', f"{SUPABASE_URL}/auth/v1" if SUPABASE_URL else None)
+SUPABASE_JWKS_CACHE_TTL = int(os.environ.get('SUPABASE_JWKS_CACHE_TTL', 3600))
 # Service-role key is used server-side only for Supabase Storage uploads.
 # Never expose this key to the React frontend.
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')

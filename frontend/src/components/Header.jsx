@@ -1,8 +1,16 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthProvider';
 
 const pageTitles = {
-  '/dashboard':   'Dashboard',
+  '/dashboard':             'Dashboard',
+  '/complaints/new':        'Report an Issue',
+  '/complaints':            'Complaints',
+  '/employee/complaints':   'Assigned to Me',
+  '/supervisor/unassigned': 'Unassigned Queue',
+  '/supervisor/complaints': 'Department Complaints',
+  '/admin/overview':        'System Overview',
+  // Legacy
   '/assets':      'Assets',
   '/categories':  'Categories',
   '/assignments': 'Assignments',
@@ -15,6 +23,12 @@ const pageTitles = {
 export default function Header() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { signOut, profile } = useAuth();
+  
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   // Match longest prefix
   const title = Object.entries(pageTitles)
@@ -38,8 +52,11 @@ export default function Header() {
         <button className="btn btn-ghost btn-icon" title="Notifications">
           <BellIcon size={18} />
         </button>
-        <div className="avatar avatar-md" style={{ background: 'var(--secondary)', fontSize: 13 }}>
-          AD
+        <button className="btn btn-ghost btn-icon" title="Log Out" onClick={handleLogout}>
+          <LogOutIcon size={18} />
+        </button>
+        <div className="avatar avatar-md" style={{ background: 'var(--secondary)', fontSize: 13 }} title={profile?.full_name || 'User'}>
+          {profile?.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U'}
         </div>
       </div>
     </header>
@@ -60,6 +77,16 @@ function BellIcon({ size = 18 }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
       <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  );
+}
+
+function LogOutIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
   );
 }

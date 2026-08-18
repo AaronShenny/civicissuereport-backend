@@ -5,29 +5,43 @@ Custom DRF authentication backend for Supabase JWTs.
 
 Flow:
   1. Extract Bearer token from the Authorization header.
-  2. Verify the JWT signature using SUPABASE_JWT_SECRET.
-  3. Extract the user UUID from the 'sub' claim.
-  4. Load the corresponding public.profiles row from the database.
-  5. Attach the Profile as request.user so that downstream permissions
-     can read role, department, and supervisor without additional DB hits.
+  2. Inspect the unverified JWT header to determine the algorithm (alg).
+  3. If ES256 (Primary):
+     - Fetch the public JWK from the Supabase JWKS endpoint (process-cached).
+     - Verify the signature using the matching public key.
+  4. If HS256 (Legacy/Local compatibility):
+     - Verify using the symmetric SUPABASE_JWT_SECRET.
+  5. Validate 'audience' and 'issuer'.
+  6. Extract the user UUID from the 'sub' claim.
+  7. Load the corresponding public.profiles row from the database.
+  8. Attach the Profile as request.user.
 
 Django does NOT issue its own tokens and does NOT store passwords.
 Supabase Auth is the sole authentication authority.
 """
 
 import jwt
+from jwt import PyJWKClient, PyJWKClientError
 from django.conf import settings
 from rest_framework import authentication, exceptions
 
+# Process-local cache for JWKS to avoid downloading on every request.
+# The cache auto-refreshes if a token presents an unknown 'kid'.
+_jwk_client = None
+
+def get_jwk_client():
+    global _jwk_client
+    if _jwk_client is None:
+        jwks_url = getattr(settings, 'SUPABASE_JWKS_URL', None)
+        if not jwks_url:
+            raise exceptions.AuthenticationFailed('SUPABASE_JWKS_URL is not configured.')
+        ttl = getattr(settings, 'SUPABASE_JWKS_CACHE_TTL', 3600)
+        _jwk_client = PyJWKClient(jwks_url, cache_keys=True, cache_jwk_set=True, lifespan=ttl)
+    return _jwk_client
 
 class SupabaseAuthentication(authentication.BaseAuthentication):
     """
     Verifies a Supabase-issued JWT and loads the matching public.profiles row.
-
-    On success, request.user is a Profile instance (not a Django auth User).
-    On failure, raises AuthenticationFailed.
-    If no Authorization header is present, returns None (unauthenticated —
-    DRF then applies the DEFAULT_PERMISSION_CLASSES check).
     """
 
     def authenticate(self, request):
@@ -39,25 +53,78 @@ class SupabaseAuthentication(authentication.BaseAuthentication):
         if not token:
             return None
 
-        jwt_secret = getattr(settings, 'SUPABASE_JWT_SECRET', None)
-        if not jwt_secret:
-            raise exceptions.AuthenticationFailed(
-                'SUPABASE_JWT_SECRET is not configured on this server.'
-            )
-
+        # Inspect unverified header ONLY to determine routing path.
+        # NEVER trust the payload at this stage.
         try:
-            payload = jwt.decode(
-                token,
-                jwt_secret,
-                algorithms=['HS256'],
-                audience='authenticated',
-            )
-        except jwt.ExpiredSignatureError:
-            raise exceptions.AuthenticationFailed('Token has expired.')
-        except jwt.InvalidAudienceError:
-            raise exceptions.AuthenticationFailed('Invalid token audience.')
-        except jwt.InvalidTokenError:
-            raise exceptions.AuthenticationFailed('Invalid token.')
+            unverified_header = jwt.get_unverified_header(token)
+        except jwt.DecodeError:
+            raise exceptions.AuthenticationFailed('Malformed token header.')
+
+        alg = unverified_header.get('alg')
+        issuer = getattr(settings, 'SUPABASE_JWT_ISSUER', None)
+
+        # Common PyJWT decode options
+        decode_kwargs = {
+            "audience": "authenticated",
+            "issuer": issuer,
+            # We strictly enforce the algorithm explicitly below
+        }
+
+        if alg == "ES256":
+            # Primary path: Live Supabase projects use ES256 signatures via JWKS.
+            kid = unverified_header.get('kid')
+            if not kid:
+                raise exceptions.AuthenticationFailed('Missing kid in token header.')
+            
+            try:
+                jwk_client = get_jwk_client()
+                signing_key = jwk_client.get_signing_key_from_jwt(token)
+            except PyJWKClientError:
+                raise exceptions.AuthenticationFailed('Failed to verify signing key from JWKS.')
+            except Exception:
+                raise exceptions.AuthenticationFailed('Authentication service temporarily unavailable.')
+
+            try:
+                payload = jwt.decode(
+                    token,
+                    key=signing_key.key,
+                    algorithms=["ES256"],
+                    **decode_kwargs
+                )
+            except jwt.ExpiredSignatureError:
+                raise exceptions.AuthenticationFailed('Token has expired.')
+            except jwt.InvalidIssuerError:
+                raise exceptions.AuthenticationFailed('Invalid token issuer.')
+            except jwt.InvalidAudienceError:
+                raise exceptions.AuthenticationFailed('Invalid token audience.')
+            except jwt.InvalidTokenError:
+                raise exceptions.AuthenticationFailed('Invalid token.')
+
+        elif alg == "HS256":
+            # Legacy/Local compatibility path: Only allowed if the explicit secret is configured.
+            jwt_secret = getattr(settings, 'SUPABASE_JWT_SECRET', None)
+            if not jwt_secret:
+                raise exceptions.AuthenticationFailed('SUPABASE_JWT_SECRET is not configured for HS256 tokens.')
+
+            try:
+                payload = jwt.decode(
+                    token,
+                    key=jwt_secret,
+                    algorithms=["HS256"],
+                    **decode_kwargs
+                )
+            except jwt.ExpiredSignatureError:
+                raise exceptions.AuthenticationFailed('Token has expired.')
+            except jwt.InvalidIssuerError:
+                raise exceptions.AuthenticationFailed('Invalid token issuer.')
+            except jwt.InvalidAudienceError:
+                raise exceptions.AuthenticationFailed('Invalid token audience.')
+            except jwt.InvalidTokenError:
+                raise exceptions.AuthenticationFailed('Invalid token.')
+
+        else:
+            # Any other algorithm is rejected immediately.
+            raise exceptions.AuthenticationFailed(f'Unsupported token algorithm: {alg}')
 
         user_id = payload.get('sub')
         if not user_id:

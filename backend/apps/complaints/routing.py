@@ -31,7 +31,7 @@ from apps.complaints.models import (
     NotificationEventType,
     NotificationChannelType,
 )
-from apps.departments.models import DepartmentCategoryRule
+from apps.departments.models import DepartmentCategoryRule, Jurisdiction
 from apps.users.models import Department, Profile, Role
 
 logger = logging.getLogger(__name__)
@@ -42,28 +42,36 @@ class RoutingFailureError(Exception):
     pass
 
 
-def find_responsible_department(complaint: Complaint) -> Department | None:
+def get_jurisdiction_for_complaint(complaint: Complaint) -> Jurisdiction | None:
+    if not complaint.district:
+        return None
+    return Jurisdiction.objects.filter(name__iexact=complaint.district).first()
+
+
+def find_responsible_department(complaint: Complaint, jurisdiction: Jurisdiction | None) -> Department | None:
     """
     Identifies the responsible Department for a given Complaint.
     Evaluates active DepartmentCategoryRule entries matching the complaint category,
-    prioritized by priority_rank.
+    prioritizing jurisdiction-specific rules over global rules.
     """
     if not complaint.category_id:
         return None
 
-    # Query active department category rules for the category
-    rule = (
-        DepartmentCategoryRule.objects
-        .filter(
-            category_id=complaint.category_id,
-            is_active=True,
-            department__is_active=True,
-        )
-        .select_related('department')
-        .order_by('priority_rank')
-        .first()
-    )
+    # Base query for active rules matching the category
+    rules_qs = DepartmentCategoryRule.objects.filter(
+        category_id=complaint.category_id,
+        is_active=True,
+        department__is_active=True,
+    ).select_related('department')
 
+    # 1. Try to find a jurisdiction-specific rule
+    if jurisdiction:
+        rule = rules_qs.filter(jurisdiction=jurisdiction).order_by('priority_rank').first()
+        if rule:
+            return rule.department
+
+    # 2. Fallback to a global rule (jurisdiction IS NULL)
+    rule = rules_qs.filter(jurisdiction__isnull=True).order_by('priority_rank').first()
     if rule:
         return rule.department
 
@@ -85,7 +93,8 @@ def route_complaint(complaint: Complaint) -> Department:
       RoutingFailureError: If no active department rule matches.
     """
     with transaction.atomic():
-        department = find_responsible_department(complaint)
+        jurisdiction = get_jurisdiction_for_complaint(complaint)
+        department = find_responsible_department(complaint, jurisdiction)
 
         if not department:
             logger.warning(
@@ -117,12 +126,17 @@ def route_complaint(complaint: Complaint) -> Department:
             changed_at=now,
         )
 
-        # 3. Create notifications for department supervisors
-        supervisors = Profile.objects.filter(
+        # 3. Create notifications for department supervisors in that jurisdiction
+        supervisors_qs = Profile.objects.filter(
             department_id=department.id,
             role__role_name=Role.SUPERVISOR,
             account_status=Profile.ACCOUNT_STATUS_ACTIVE,
         )
+        
+        if jurisdiction:
+            supervisors_qs = supervisors_qs.filter(jurisdiction=jurisdiction)
+
+        supervisors = list(supervisors_qs)
 
         notifications_to_create = [
             Notification(

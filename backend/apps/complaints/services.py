@@ -46,6 +46,7 @@ from apps.complaints.storage import (
     detect_file_type,
 )
 from apps.users.models import Profile
+from apps.complaints.location import extract_coordinates_from_url, LocationExtractionError
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +104,21 @@ def validate_submission_data(data: dict, uploaded_files: list) -> list[str]:
     cat, cat_errors = validate_category(data.get('category_id'))
     errors.extend(cat_errors)
 
-    # Location
-    errors.extend(validate_location(data.get('latitude'), data.get('longitude')))
+    # Google Maps Location Extraction
+    google_maps_url = data.get('google_maps_url')
+    if not google_maps_url:
+        errors.append('google_maps_url is required.')
+    else:
+        try:
+            lat, lng = extract_coordinates_from_url(google_maps_url)
+            data['latitude'] = lat
+            data['longitude'] = lng
+        except LocationExtractionError as e:
+            errors.append(str(e))
+
+    # Location (double check bounds)
+    if 'latitude' in data and 'longitude' in data:
+        errors.extend(validate_location(data['latitude'], data['longitude']))
 
     # Attachment requirement
     if cat and cat.requires_attachment and not uploaded_files:
@@ -178,6 +192,9 @@ def _create_complaint_in_db(
     description: str,
     latitude: float,
     longitude: float,
+    state: str,
+    district: str,
+    google_maps_url: str,
     location_address: str,
     inconvenience_details: str,
     expected_solution: str,
@@ -204,11 +221,13 @@ def _create_complaint_in_db(
             """
             INSERT INTO complaints (
                 id, complaint_number, citizen_id, category_id, description,
+                state, district, google_maps_url,
                 location, location_lat, location_lng, location_address,
                 inconvenience_details, expected_solution,
                 status, reporter_count, submitted_at, updated_at
             ) VALUES (
                 %s, %s, %s, %s, %s,
+                %s, %s, %s,
                 ST_SetSRID(ST_MakePoint(%s, %s), 4326),
                 %s, %s, %s,
                 %s, %s,
@@ -218,6 +237,7 @@ def _create_complaint_in_db(
             [
                 str(complaint_id), complaint_number, str(citizen.id),
                 int(category.id), description,
+                state or '', district or '', google_maps_url or '',
                 float(longitude), float(latitude),  # ST_MakePoint(lng, lat)
                 float(latitude), float(longitude), location_address or '',
                 inconvenience_details or '', expected_solution or '',
@@ -299,6 +319,9 @@ def submit_complaint(
         description=validated_data['description'].strip(),
         latitude=lat,
         longitude=lng,
+        state=validated_data.get('state', '').strip(),
+        district=validated_data.get('district', '').strip(),
+        google_maps_url=validated_data.get('google_maps_url', '').strip(),
         location_address=validated_data.get('location_address', ''),
         inconvenience_details=validated_data.get('inconvenience_details', ''),
         expected_solution=validated_data.get('expected_solution', ''),
