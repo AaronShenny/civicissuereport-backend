@@ -57,10 +57,15 @@ export default function Sidebar() {
 
     if (role === 'system_admin') {
       items.push({
+        section: 'Complaints',
+        items: [
+          { to: '/department/complaints', label: 'All Complaints', icon: ListIcon },
+        ],
+      });
+      items.push({
         section: 'System Administration',
         items: [
           { to: '/dashboard', label: 'System Overview', icon: ChartIcon },
-          { to: '/department/complaints', label: 'View Complaints', icon: FolderIcon },
           { to: '/admin/users', label: 'Employees', icon: UsersIcon },
           { to: '/admin/departments', label: 'Departments', icon: FolderIcon },
           { to: '/admin/categories', label: 'Categories', icon: GridIcon },

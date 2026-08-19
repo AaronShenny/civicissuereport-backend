@@ -10,8 +10,21 @@ const pageTitles = {
   '/employee/complaints':   'Assigned to Me',
   '/supervisor/unassigned': 'Unassigned Queue',
   '/supervisor/complaints': 'Department Complaints',
+  '/department/complaints': 'All Complaints',
+  '/department/employees':  'Department Team',
+  '/department/performance':'Department Performance',
   '/admin/overview':        'System Overview',
-  '/settings':    'Settings',
+  '/admin/users':           'Employees',
+  '/admin/departments':     'Departments',
+  '/admin/categories':       'Categories',
+  '/admin/category-routing': 'Category Routing',
+  '/admin/roles':           'Roles & Permissions',
+  '/admin/priority-rules':   'Priority Rules',
+  '/admin/assignment-rules': 'Assignment Rules',
+  '/admin/audit-logs':       'Audit Logs',
+  '/admin/reports':          'Reports',
+  '/admin/settings':         'Settings',
+  '/settings':              'Settings',
 };
 
 export default function Header() {

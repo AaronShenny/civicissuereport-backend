@@ -247,40 +247,51 @@ class DepartmentDetailView(generics.RetrieveUpdateAPIView):
 
         # Safety Check for Deactivation (non-destructive)
         if old_active and not new_active:
-            active_profiles = Profile.objects.filter(
-                department_id=instance.id,
-                account_status='active'
-            ).select_related('role')
-            
-            active_employees = active_profiles.filter(role__role_name='ground_level_employee')
-            active_supervisors = active_profiles.filter(role__role_name='supervisor')
-            active_admins = active_profiles.filter(role__role_name='department_admin')
-            
-            active_rules = DepartmentCategoryRule.objects.filter(
-                department_id=instance.id,
-                is_active=True
-            )
-            
-            pending_complaints = Complaint.objects.filter(
-                assigned_department_id=instance.id
-            ).exclude(status__in=['resolved', 'closed', 'invalid'])
-            
-            errors = []
-            if active_employees.exists():
-                errors.append(f"{active_employees.count()} active employee(s)")
-            if active_supervisors.exists():
-                errors.append(f"{active_supervisors.count()} active supervisor(s)")
-            if active_admins.exists():
-                errors.append(f"{active_admins.count()} active department admin(s)")
-            if active_rules.exists():
-                errors.append(f"{active_rules.count()} active routing rule(s)")
-            if pending_complaints.exists():
-                errors.append(f"{pending_complaints.count()} unresolved complaint(s)")
+            force = self.request.data.get('force', False) or self.request.query_params.get('force', False)
+            if isinstance(force, str):
+                force = force.lower() in ['true', '1', 'yes']
+
+            if not force:
+                active_profiles = Profile.objects.filter(
+                    department_id=instance.id,
+                    account_status='active'
+                ).select_related('role')
                 
-            if errors:
-                raise ValidationError(
-                    f"Cannot deactivate department: {', '.join(errors)} remaining."
+                active_employees = active_profiles.filter(role__role_name='ground_level_employee')
+                active_supervisors = active_profiles.filter(role__role_name='supervisor')
+                active_admins = active_profiles.filter(role__role_name='department_admin')
+                
+                active_rules = DepartmentCategoryRule.objects.filter(
+                    department_id=instance.id,
+                    is_active=True
                 )
+                
+                pending_complaints = Complaint.objects.filter(
+                    assigned_department_id=instance.id
+                ).exclude(status__in=['resolved', 'closed', 'invalid'])
+                
+                errors = []
+                if active_employees.exists():
+                    errors.append(f"{active_employees.count()} active employee(s)")
+                if active_supervisors.exists():
+                    errors.append(f"{active_supervisors.count()} active supervisor(s)")
+                if active_admins.exists():
+                    errors.append(f"{active_admins.count()} active department admin(s)")
+                if active_rules.exists():
+                    errors.append(f"{active_rules.count()} active routing rule(s)")
+                if pending_complaints.exists():
+                    errors.append(f"{pending_complaints.count()} unresolved complaint(s)")
+                    
+                if errors:
+                    raise ValidationError(
+                        f"Cannot deactivate department: {', '.join(errors)} remaining."
+                    )
+            else:
+                # Force deactivation: auto-deactivate active routing rules for this department
+                DepartmentCategoryRule.objects.filter(
+                    department_id=instance.id,
+                    is_active=True
+                ).update(is_active=False)
 
         old_values = {
             'name': instance.name,

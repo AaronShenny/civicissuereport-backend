@@ -305,7 +305,6 @@ export default function ComplaintDetail() {
                   const filteredHistory = complaint.status_history.filter(sh => sh.new_status !== 'submitted');
                   return filteredHistory.map((sh, idx) => (
                     <div className="timeline-item" key={sh.id}>
-                      <div className="timeline-line"></div>
                       <div className="timeline-dot" style={{ background: idx === filteredHistory.length - 1 ? 'var(--primary)' : 'var(--text-muted)' }}></div>
                     <div className="timeline-content">
                       <p style={{ fontWeight: 500, textTransform: 'capitalize' }}>

@@ -66,7 +66,14 @@ DATABASES = {
 # Will override with Postgres URL in production or if DATABASE_URL is set
 if os.environ.get('DATABASE_URL'):
     import dj_database_url
-    DATABASES['default'] = dj_database_url.config(conn_max_age=600, conn_health_checks=True)
+    db_url = os.environ.get('DATABASE_URL')
+    # Use conn_max_age=0 when using PgBouncer pooler to prevent client connection exhaustion
+    conn_max_age = 0 if 'pooler.supabase.com' in db_url else 600
+    DATABASES['default'] = dj_database_url.config(
+        default=db_url,
+        conn_max_age=conn_max_age,
+        conn_health_checks=True
+    )
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

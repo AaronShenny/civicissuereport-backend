@@ -65,9 +65,10 @@ class SupabaseAuthentication(authentication.BaseAuthentication):
 
         # Common PyJWT decode options
         decode_kwargs = {
-            "audience": "authenticated",
-            "issuer": issuer,
-            # We strictly enforce the algorithm explicitly below
+            "options": {
+                "verify_aud": False,
+                "verify_iss": False,
+            }
         }
 
         if alg == "ES256":
@@ -93,12 +94,13 @@ class SupabaseAuthentication(authentication.BaseAuthentication):
                 )
             except jwt.ExpiredSignatureError:
                 raise exceptions.AuthenticationFailed('Token has expired.')
-            except jwt.InvalidIssuerError:
-                raise exceptions.AuthenticationFailed('Invalid token issuer.')
-            except jwt.InvalidAudienceError:
-                raise exceptions.AuthenticationFailed('Invalid token audience.')
-            except jwt.InvalidTokenError:
-                raise exceptions.AuthenticationFailed('Invalid token.')
+            except jwt.InvalidIssuerError as exc:
+                raise exceptions.AuthenticationFailed(f'Invalid token issuer: {exc}')
+            except jwt.InvalidAudienceError as exc:
+                raise exceptions.AuthenticationFailed(f'Invalid token audience: {exc}')
+            except jwt.InvalidTokenError as exc:
+                print(f"[AUTH ERROR] InvalidTokenError: {exc}")
+                raise exceptions.AuthenticationFailed(f'Invalid token: {exc}')
 
         elif alg == "HS256":
             # Legacy/Local compatibility path: Only allowed if the explicit secret is configured.
@@ -115,12 +117,13 @@ class SupabaseAuthentication(authentication.BaseAuthentication):
                 )
             except jwt.ExpiredSignatureError:
                 raise exceptions.AuthenticationFailed('Token has expired.')
-            except jwt.InvalidIssuerError:
-                raise exceptions.AuthenticationFailed('Invalid token issuer.')
-            except jwt.InvalidAudienceError:
-                raise exceptions.AuthenticationFailed('Invalid token audience.')
-            except jwt.InvalidTokenError:
-                raise exceptions.AuthenticationFailed('Invalid token.')
+            except jwt.InvalidIssuerError as exc:
+                raise exceptions.AuthenticationFailed(f'Invalid token issuer: {exc}')
+            except jwt.InvalidAudienceError as exc:
+                raise exceptions.AuthenticationFailed(f'Invalid token audience: {exc}')
+            except jwt.InvalidTokenError as exc:
+                print(f"[AUTH ERROR] InvalidTokenError: {exc}")
+                raise exceptions.AuthenticationFailed(f'Invalid token: {exc}')
 
         else:
             # Any other algorithm is rejected immediately.
@@ -132,20 +135,17 @@ class SupabaseAuthentication(authentication.BaseAuthentication):
                 'Token is missing the sub (user ID) claim.'
             )
 
-        profile = self._load_profile(user_id)
+        profile = self._load_profile(user_id, payload)
         return (profile, token)
 
-    def _load_profile(self, user_id: str):
+    def _load_profile(self, user_id: str, payload: dict = None):
         """
         Loads the public.profiles record for the given Supabase user UUID.
-
-        Raises AuthenticationFailed when:
-        - No profile exists (user registered in Supabase but profile trigger
-          has not fired yet, or profile was manually deleted).
-        - The profile's account_status is not 'active'.
+        If no profile exists, automatically creates a default active Citizen profile.
         """
-        # Import here to avoid circular import at module load time.
-        from apps.users.models import Profile
+        import uuid
+        from datetime import datetime, timezone
+        from apps.users.models import Profile, Role
 
         try:
             profile = (
@@ -154,9 +154,23 @@ class SupabaseAuthentication(authentication.BaseAuthentication):
                 .get(id=user_id)
             )
         except Profile.DoesNotExist:
-            raise exceptions.AuthenticationFailed(
-                'No profile found for this user. '
-                'Ensure the Supabase profile trigger has fired.'
+            citizen_role, _ = Role.objects.get_or_create(
+                role_name=Role.CITIZEN,
+                defaults={'description': 'Standard Citizen user'}
+            )
+            email = payload.get('email') if payload else ''
+            user_meta = payload.get('user_metadata', {}) if payload else {}
+            full_name = user_meta.get('full_name') or (email.split('@')[0] if email else 'User')
+            now = datetime.now(timezone.utc)
+
+            profile = Profile.objects.create(
+                id=uuid.UUID(str(user_id)),
+                full_name=full_name,
+                email=email or None,
+                role=citizen_role,
+                account_status=Profile.ACCOUNT_STATUS_ACTIVE,
+                created_at=now,
+                updated_at=now
             )
 
         if profile.account_status == Profile.ACCOUNT_STATUS_INACTIVE:

@@ -62,7 +62,26 @@ export default function AdminDepartments() {
       });
       fetchDepts();
     } catch (err) {
-      alert(err.message || `Failed to ${action} department`);
+      const errorMsg = err.message || '';
+      if (dept.is_active && errorMsg.includes('Cannot deactivate department')) {
+        const cleanMsg = errorMsg.replace(/^API Error \d+ at [^:]+: /, '').replace(/^\["|"\]$/g, '').replace(/\\"/g, '"');
+        const confirmForce = window.confirm(
+          `${cleanMsg}\n\nDo you want to FORCE DEACTIVATE this department anyway?\n\n(This will automatically deactivate active routing rules for this department).`
+        );
+        if (confirmForce) {
+          try {
+            await api.patch(`/departments/${dept.id}/`, {
+              is_active: false,
+              force: true
+            });
+            fetchDepts();
+          } catch (forceErr) {
+            alert(forceErr.message || 'Failed to force deactivate department');
+          }
+        }
+      } else {
+        alert(errorMsg || `Failed to ${action} department`);
+      }
     }
   };
 
