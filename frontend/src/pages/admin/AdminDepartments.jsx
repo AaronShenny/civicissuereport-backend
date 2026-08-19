@@ -7,22 +7,64 @@ export default function AdminDepartments() {
   const [error, setError] = useState(null);
   
   const [showModal, setShowModal] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [modalError, setModalError] = useState(null);
 
   useEffect(() => {
-    async function fetchDepts() {
-      try {
-        setLoading(true);
-        const res = await api.get('/departments/');
-        const deptList = Array.isArray(res) ? res : (res.results || []);
-        setDepartments(deptList);
-      } catch (err) {
-        setError(err.message || 'Failed to load departments');
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchDepts();
   }, []);
+
+  async function fetchDepts() {
+    try {
+      setLoading(true);
+      const res = await api.get('/departments/');
+      const deptList = Array.isArray(res) ? res : (res.results || []);
+      setDepartments(deptList);
+    } catch (err) {
+      setError(err.message || 'Failed to load departments');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    try {
+      setCreating(true);
+      setModalError(null);
+      await api.post('/departments/create/', {
+        name: name.trim(),
+        description: description.trim()
+      });
+      setName('');
+      setDescription('');
+      setShowModal(false);
+      fetchDepts();
+    } catch (err) {
+      setModalError(err.message || 'Failed to create department');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleToggleActive = async (dept) => {
+    const action = dept.is_active ? 'deactivate' : 'activate';
+    if (!window.confirm(`Are you sure you want to ${action} the "${dept.name}" department?`)) {
+      return;
+    }
+    try {
+      setError(null);
+      await api.patch(`/departments/${dept.id}/`, {
+        is_active: !dept.is_active
+      });
+      fetchDepts();
+    } catch (err) {
+      alert(err.message || `Failed to ${action} department`);
+    }
+  };
 
   return (
     <div className="admin-page">
@@ -60,17 +102,32 @@ export default function AdminDepartments() {
               <thead>
                 <tr>
                   <th>Department Name</th>
+                  <th>Description</th>
+                  <th>Employees</th>
+                  <th>Assigned Complaints</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {departments.map((d) => (
                   <tr key={d.id}>
                     <td><strong>{d.name}</strong></td>
+                    <td>{d.description || <em className="text-muted">No description</em>}</td>
+                    <td>{d.employee_count !== undefined ? d.employee_count : 0}</td>
+                    <td>{d.complaint_count !== undefined ? d.complaint_count : 0}</td>
                     <td>
                       <span className={`status-badge status-${d.is_active ? 'verified' : 'invalid'}`}>
                         {d.is_active ? 'Active' : 'Inactive'}
                       </span>
+                    </td>
+                    <td>
+                      <button 
+                        className={`btn btn-sm ${d.is_active ? 'btn-danger' : 'btn-ghost'}`}
+                        onClick={() => handleToggleActive(d)}
+                      >
+                        {d.is_active ? 'Deactivate' : 'Activate'}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -83,25 +140,47 @@ export default function AdminDepartments() {
       {showModal && (
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Add Department</h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-                <strong>Pending Backend API:</strong> Department creation via the frontend 
-                is currently disabled because the backend returns a <code>501 Not Implemented</code>. 
-                Departments must currently be managed via the Supabase admin panel.
-              </p>
-              <div className="form-group">
-                <label className="form-label">Department Name</label>
-                <input type="text" className="form-control" placeholder="e.g. Traffic Police" disabled />
+            <form onSubmit={handleCreate}>
+              <div className="modal-header">
+                <h3 className="modal-title">Add Department</h3>
+                <button type="button" className="modal-close" onClick={() => setShowModal(false)}>×</button>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Close</button>
-              <button className="btn btn-primary" disabled>Create Department</button>
-            </div>
+              <div className="modal-body">
+                {modalError && (
+                  <div className="alert alert-danger" style={{ marginBottom: '1rem', color: 'var(--error)' }}>
+                    {modalError}
+                  </div>
+                )}
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label className="form-label">Department Name</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="e.g. Health Department" 
+                    value={name} 
+                    onChange={e => setName(e.target.value)}
+                    required 
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <textarea 
+                    className="form-control" 
+                    placeholder="Describe department responsibilities..." 
+                    value={description} 
+                    onChange={e => setDescription(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Close</button>
+                <button type="submit" className="btn btn-primary" disabled={creating || !name.trim()}>
+                  {creating ? 'Creating...' : 'Create Department'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

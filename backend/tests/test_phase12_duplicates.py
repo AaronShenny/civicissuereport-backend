@@ -21,9 +21,10 @@ def make_mock_category() -> ComplaintCategory:
     return cat
 
 def make_mock_profile(role_name: str, sys_admin=False, dept_admin=False) -> Profile:
+    r = Role(role_name=role_name)
     p = Profile(
         id=uuid.uuid4(),
-        role_name=role_name,
+        role=r,
         account_status='active',
     )
     p.is_system_admin = sys_admin

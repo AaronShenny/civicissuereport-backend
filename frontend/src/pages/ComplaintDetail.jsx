@@ -22,7 +22,8 @@ export default function ComplaintDetail() {
   const fetchComplaint = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/complaints/${id}/`);
+      const endpoint = role === 'citizen' ? `/complaints/${id}/` : `/complaints/${id}/staff/`;
+      const res = await api.get(endpoint);
       setComplaint(res);
     } catch (err) {
       setError(err.data?.detail || err.message || 'Failed to load complaint details.');

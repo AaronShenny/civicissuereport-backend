@@ -4,26 +4,18 @@ apps/complaints/priority.py
 Deterministic and Hybrid AI Priority Engine (Phase 11)
 """
 
-from apps.complaints.models import PriorityCategory
+from apps.complaints.models import PriorityCategory, ComplaintCategory
 
 def get_base_priority(category_name: str) -> str:
     """
-    Returns the deterministic BASE priority for a given category name.
+    Returns the deterministic BASE priority for a given category name,
+    now backed by the ComplaintCategory model.
     """
-    mapping = {
-        'drainage': PriorityCategory.HIGH,
-        'garbage': PriorityCategory.HIGH,
-        'other': PriorityCategory.MEDIUM,
-        'pothole': PriorityCategory.HIGH,
-        'road_damage': PriorityCategory.HIGH,
-        'sanitation': PriorityCategory.HIGH,
-        'streetlight': PriorityCategory.MEDIUM,
-        'water_supply': PriorityCategory.HIGH,
-    }
-    
-    # Normalize category name for lookup
-    normalized_name = category_name.strip().lower().replace(' ', '_')
-    return mapping.get(normalized_name, PriorityCategory.MEDIUM)
+    try:
+        category = ComplaintCategory.objects.get(name__iexact=category_name.strip())
+        return category.base_priority
+    except ComplaintCategory.DoesNotExist:
+        return PriorityCategory.MEDIUM
 
 def calculate_final_priority(base_priority: str, ai_severity_level: str = None) -> str:
     """

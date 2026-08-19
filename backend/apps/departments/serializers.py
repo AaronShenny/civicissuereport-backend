@@ -9,9 +9,12 @@ from apps.departments.models import DepartmentCategoryRule, Jurisdiction
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
+    employee_count = serializers.IntegerField(read_only=True, required=False)
+    complaint_count = serializers.IntegerField(read_only=True, required=False)
+
     class Meta:
         model = Department
-        fields = ['id', 'name', 'description', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'description', 'is_active', 'created_at', 'updated_at', 'employee_count', 'complaint_count']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
@@ -24,7 +27,11 @@ class DepartmentCreateUpdateSerializer(serializers.ModelSerializer):
 class JurisdictionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Jurisdiction
-        fields = ['id', 'name', 'area_type']
+        fields = ['id', 'name', 'area_type', 'boundary', 'is_active', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'boundary': {'required': False, 'allow_null': True, 'allow_blank': True}
+        }
 
 
 class DepartmentCategoryRuleSerializer(serializers.ModelSerializer):

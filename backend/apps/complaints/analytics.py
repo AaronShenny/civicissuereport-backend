@@ -23,9 +23,9 @@ def get_dashboard_analytics(profile, filters):
             department_id=profile.department_id,
             role__role_name=Role.GROUND_LEVEL_EMPLOYEE
         ).annotate(
-            assigned=Count('assignments', filter=Q(assignments__complaint__status__in=['assigned', 'verified'])),
-            in_progress=Count('assignments', filter=Q(assignments__complaint__status='in_progress')),
-            resolved=Count('assignments', filter=Q(assignments__complaint__status__in=['resolved', 'closed']))
+            assigned=Count('assigned_complaints', filter=Q(assigned_complaints__status__in=['assigned', 'verified'])),
+            in_progress=Count('assigned_complaints', filter=Q(assigned_complaints__status='in_progress')),
+            resolved=Count('assigned_complaints', filter=Q(assigned_complaints__status__in=['resolved', 'closed']))
         ).values('full_name', 'assigned', 'in_progress', 'resolved').order_by('-assigned')
         
         data['workload'] = list(employee_stats)

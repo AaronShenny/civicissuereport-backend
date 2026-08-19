@@ -374,3 +374,103 @@ class PublicComplaintTrackingSerializer(serializers.ModelSerializer):
         if res:
             return PublicComplaintResolutionSerializer(res).data
         return None
+
+
+class StaffComplaintDetailSerializer(serializers.ModelSerializer):
+    """Full operational view for staff members with operational details and AI/priority scores, but no citizen PII."""
+    category = ComplaintCategorySerializer(read_only=True)
+    assigned_department = DepartmentSummarySerializer(read_only=True)
+    assigned_employee = StaffProfileSummarySerializer(read_only=True)
+    attachments = ComplaintAttachmentSerializer(many=True, read_only=True)
+    status_history = ComplaintStatusHistorySerializer(many=True, read_only=True)
+    assignments = ComplaintAssignmentSerializer(many=True, read_only=True)
+    verifications = ComplaintVerificationSerializer(many=True, read_only=True)
+    resolutions = ComplaintResolutionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Complaint
+        fields = [
+            'id', 'complaint_number',
+            'category', 'description',
+            'location_lat', 'location_lng', 'location_address',
+            'district', 'taluk', 'local_body', 'ward',
+            'inconvenience_details', 'expected_solution',
+            'status', 'priority_category', 'priority_score',
+            'severity_level', 'severity_score',
+            'assigned_department',
+            'assigned_employee',
+            'expected_completion_date',
+            'closure_confirmation',
+            'closure_due_at',
+            'reporter_count',
+            'submitted_at', 'updated_at',
+            'attachments', 'status_history', 'assignments', 'verifications', 'resolutions',
+        ]
+        read_only_fields = fields
+
+
+class CitizenPIISerializer(serializers.ModelSerializer):
+    class Meta:
+        from apps.users.models import Profile
+        model = Profile
+        fields = ['id', 'full_name', 'email', 'phone', 'account_status']
+        read_only_fields = fields
+
+
+class ComplaintClassificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        from apps.complaints.models import ComplaintClassification
+        model = ComplaintClassification
+        fields = [
+            'id', 'confidence_score', 'severity_level', 'severity_score',
+            'model_name', 'model_version', 'is_manual_override', 'classified_at'
+        ]
+        read_only_fields = fields
+
+
+class SystemAdminComplaintDetailSerializer(serializers.ModelSerializer):
+    """
+    Highly privileged comprehensive view for System Admins.
+    Includes Citizen PII, raw AI metadata, complete assignment history, and priority debugging data.
+    """
+    citizen = CitizenPIISerializer(read_only=True)
+    category = ComplaintCategorySerializer(read_only=True)
+    assigned_department = DepartmentSummarySerializer(read_only=True)
+    assigned_employee = StaffProfileSummarySerializer(read_only=True)
+    attachments = ComplaintAttachmentSerializer(many=True, read_only=True)
+    status_history = ComplaintStatusHistorySerializer(many=True, read_only=True)
+    assignments = ComplaintAssignmentSerializer(many=True, read_only=True)
+    verifications = ComplaintVerificationSerializer(many=True, read_only=True)
+    resolutions = ComplaintResolutionSerializer(many=True, read_only=True)
+    classifications = ComplaintClassificationSerializer(many=True, read_only=True)
+    
+    is_duplicate = serializers.SerializerMethodField()
+    base_priority = serializers.CharField(source='category.base_priority', read_only=True, default=None)
+
+    class Meta:
+        model = Complaint
+        fields = [
+            'id', 'complaint_number',
+            'citizen',
+            'category', 'base_priority', 'description',
+            'location_lat', 'location_lng', 'location_address',
+            'google_maps_url', 'state', 'district', 'taluk', 'local_body', 'ward',
+            'inconvenience_details', 'expected_solution',
+            'status', 'priority_category', 'priority_score',
+            'severity_level', 'severity_score',
+            'classifications',
+            'assigned_department',
+            'assigned_employee',
+            'expected_completion_date',
+            'closure_confirmation',
+            'closure_due_at',
+            'reporter_count',
+            'submitted_at', 'updated_at',
+            'attachments', 'status_history', 'assignments', 'verifications', 'resolutions',
+            'main_complaint_id', 'is_duplicate',
+        ]
+        read_only_fields = fields
+
+    def get_is_duplicate(self, obj):
+        return obj.main_complaint_id is not None
+

@@ -787,6 +787,7 @@ class PublicComplaintTrackingView(APIView):
 
 from core.permissions.roles import IsDepartmentAdminOrSystemAdmin, IsSupervisorOrAbove
 from apps.complaints.reporting import get_filtered_complaints_queryset, get_analytics_data, generate_excel_report, generate_pdf_report
+from apps.complaints.serializers import StaffComplaintDetailSerializer
 from django.http import HttpResponse
 
 class AdminAnalyticsView(APIView):
@@ -814,6 +815,11 @@ class AdminExportView(APIView):
     Returns generated Excel or PDF report based on query parameters.
     """
     permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+
+    def perform_content_negotiation(self, request, force=False):
+        # Bypass DRF's format check since we return raw HttpResponse for xlsx/pdf
+        renderers = self.get_renderers()
+        return (renderers[0], renderers[0].media_type)
 
     def get(self, request):
         profile = getattr(request.user, 'profile', None)
@@ -858,3 +864,97 @@ class DashboardAnalyticsView(APIView):
         data = get_dashboard_analytics(profile, filters)
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+class StaffComplaintDetailView(APIView):
+    """
+    GET /api/v1/complaints/<uuid:pk>/staff/
+    Retrieves full complaint details for authorized staff members.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsSupervisorOrAbove | IsGroundLevelEmployee]
+
+    def get(self, request, pk):
+        complaint = get_object_or_404(Complaint, pk=pk)
+        profile = request.user.profile
+
+        allowed = False
+        if profile.is_system_admin:
+            allowed = True
+        elif profile.is_department_admin or profile.is_supervisor:
+            if profile.department_id and complaint.assigned_department_id == profile.department_id:
+                allowed = True
+        elif profile.is_ground_level_employee:
+            if complaint.assigned_employee_id == profile.id:
+                allowed = True
+
+        if not allowed:
+            return Response(
+                {'detail': 'You do not have permission to view this complaint.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if profile.is_system_admin:
+            from apps.complaints.serializers import SystemAdminComplaintDetailSerializer
+            serializer = SystemAdminComplaintDetailSerializer(complaint)
+        else:
+            serializer = StaffComplaintDetailSerializer(complaint)
+            
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AdminDepartmentComplaintsView(generics.ListAPIView):
+    """
+    GET /api/v1/admin/department/complaints/
+    Returns complaints belonging to the Department Admin's department.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsDepartmentAdminOrSystemAdmin]
+    serializer_class = SupervisorComplaintListSerializer
+
+    def get_queryset(self):
+        profile = self.request.user.profile
+        if profile.is_system_admin:
+            queryset = Complaint.objects.all()
+            dept_id = self.request.query_params.get('department')
+            if dept_id:
+                queryset = queryset.filter(assigned_department_id=dept_id)
+        else:
+            if not profile.department_id:
+                return Complaint.objects.none()
+            queryset = Complaint.objects.filter(assigned_department_id=profile.department_id)
+
+        # Filters
+        status = self.request.query_params.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+
+        category = self.request.query_params.get('category')
+        if category:
+            queryset = queryset.filter(category_id=category)
+
+        priority = self.request.query_params.get('priority')
+        if priority:
+            queryset = queryset.filter(priority_category=priority)
+
+        district = self.request.query_params.get('district')
+        if district:
+            queryset = queryset.filter(district__iexact=district)
+
+        start_date = self.request.query_params.get('start_date')
+        if start_date:
+            queryset = queryset.filter(submitted_at__date__gte=start_date)
+
+        end_date = self.request.query_params.get('end_date')
+        if end_date:
+            queryset = queryset.filter(submitted_at__date__lte=end_date)
+
+        search = self.request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(complaint_number__icontains=search) |
+                Q(location_address__icontains=search) |
+                Q(description__icontains=search)
+            )
+
+        return queryset.select_related('category', 'assigned_department', 'assigned_employee').order_by('-submitted_at')
+

@@ -6,7 +6,26 @@ from rest_framework import status
 from apps.complaints.priority import get_base_priority, calculate_final_priority
 from apps.complaints.models import PriorityCategory
 
+@pytest.mark.django_db
 def test_base_priorities():
+    from datetime import datetime, timezone
+    from apps.complaints.models import ComplaintCategory
+    now = datetime.now(timezone.utc)
+    # Seed data
+    categories = [
+        ('drainage', PriorityCategory.HIGH),
+        ('garbage', PriorityCategory.HIGH),
+        ('other', PriorityCategory.MEDIUM),
+        ('pothole', PriorityCategory.HIGH),
+        ('road_damage', PriorityCategory.HIGH),
+        ('sanitation', PriorityCategory.HIGH),
+        ('streetlight', PriorityCategory.MEDIUM),
+        ('water_supply', PriorityCategory.HIGH),
+        ('Road Damage ', PriorityCategory.HIGH),
+    ]
+    for name, bp in categories:
+        ComplaintCategory.objects.create(name=name, base_priority=bp, created_at=now, updated_at=now)
+
     assert get_base_priority('drainage') == PriorityCategory.HIGH
     assert get_base_priority('garbage') == PriorityCategory.HIGH
     assert get_base_priority('other') == PriorityCategory.MEDIUM

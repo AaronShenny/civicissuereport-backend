@@ -125,6 +125,7 @@ class ComplaintCategory(models.Model):
     name = models.TextField(unique=True)
     description = models.TextField(null=True, blank=True)
     requires_attachment = models.BooleanField(default=False)
+    base_priority = models.CharField(max_length=16, choices=PriorityCategory.choices, default=PriorityCategory.MEDIUM)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
