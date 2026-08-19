@@ -17,17 +17,11 @@ async function getHeaders(isFormData = false) {
 }
 
 async function request(endpoint, options = {}) {
-  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const isFormData = options.body instanceof FormData;
   const headers = await getHeaders(isFormData);
   
-  let formattedBody = options.body;
-  if (!isFormData && formattedBody && typeof formattedBody === 'object') {
-    formattedBody = JSON.stringify(formattedBody);
-  }
-
   const config = {
     ...options,
-    body: formattedBody,
     headers: {
       ...headers,
       ...options.headers,
@@ -69,19 +63,13 @@ async function request(endpoint, options = {}) {
     return null;
   }
 
-  if (options.responseType === 'blob') {
-    return response.blob();
-  }
-
   return response.json();
 }
 
 export const api = {
   get: (endpoint, options) => request(endpoint, { method: 'GET', ...options }),
-  post: (endpoint, body, options) => request(endpoint, { method: 'POST', body, ...options }),
-  put: (endpoint, body, options) => request(endpoint, { method: 'PUT', body, ...options }),
-  patch: (endpoint, body, options) => request(endpoint, { method: 'PATCH', body, ...options }),
+  post: (endpoint, body, options) => request(endpoint, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body), ...options }),
+  put: (endpoint, body, options) => request(endpoint, { method: 'PUT', body: body instanceof FormData ? body : JSON.stringify(body), ...options }),
+  patch: (endpoint, body, options) => request(endpoint, { method: 'PATCH', body: body instanceof FormData ? body : JSON.stringify(body), ...options }),
   delete: (endpoint, options) => request(endpoint, { method: 'DELETE', ...options }),
 };
-
-export default api;

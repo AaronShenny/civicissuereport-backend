@@ -60,6 +60,7 @@ export default function Sidebar() {
         section: 'System Administration',
         items: [
           { to: '/dashboard', label: 'System Overview', icon: ChartIcon },
+          { to: '/department/complaints', label: 'View Complaints', icon: FolderIcon },
           { to: '/admin/users', label: 'Employees', icon: UsersIcon },
           { to: '/admin/departments', label: 'Departments', icon: FolderIcon },
           { to: '/admin/categories', label: 'Categories', icon: GridIcon },
@@ -102,8 +103,8 @@ export default function Sidebar() {
     <aside className="sidebar">
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-mark" style={{ background: 'var(--primary)', color: 'var(--surface)' }}>C</div>
-        <span className="sidebar-logo-text">CivicConnect</span>
+        <div className="sidebar-logo-mark" style={{ background: 'var(--primary)', color: 'var(--surface)' }}>J</div>
+        <span className="sidebar-logo-text">JanaSeva</span>
       </div>
 
       {/* Nav */}

@@ -47,7 +47,7 @@ export default function Header() {
   // Match longest prefix
   const title = Object.entries(pageTitles)
     .sort((a, b) => b[0].length - a[0].length)
-    .find(([path]) => pathname.startsWith(path))?.[1] ?? 'CivicConnect';
+    .find(([path]) => pathname.startsWith(path))?.[1] ?? 'JanaSeva';
 
   return (
     <header className="top-header">

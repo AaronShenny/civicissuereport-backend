@@ -219,7 +219,8 @@ class EmployeeCreateView(APIView):
                 phone=data.get('phone', ''),
                 role_id=data['role_id'],
                 department_id=data.get('department_id'),
-                jurisdiction_id=data.get('jurisdiction_id')
+                jurisdiction_id=data.get('jurisdiction_id'),
+                password=data.get('password')
             )
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)

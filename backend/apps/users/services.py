@@ -69,7 +69,8 @@ def create_employee(
     phone: str,
     role_id: int,
     department_id: str,
-    jurisdiction_id: str
+    jurisdiction_id: str,
+    password: str = None
 ) -> Profile:
     """
     Creates a new employee account in Supabase Auth and provisions their Profile.
@@ -84,8 +85,9 @@ def create_employee(
         raise DRFValidationError("Unauthorized to create employees.")
 
     # 1. Create in Supabase Auth using Admin API
-    alphabet = string.ascii_letters + string.digits + "!@#$%"
-    password = ''.join(secrets.choice(alphabet) for _ in range(16))
+    if not password:
+        alphabet = string.ascii_letters + string.digits + "!@#$%"
+        password = ''.join(secrets.choice(alphabet) for _ in range(16))
 
     headers = {
         'apikey': settings.SUPABASE_SERVICE_ROLE_KEY,

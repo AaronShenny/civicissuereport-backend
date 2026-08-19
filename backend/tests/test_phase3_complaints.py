@@ -190,6 +190,7 @@ class TestComplaintNumber:
 class TestComplaintCreation:
 
     # 6 & 7: Status starts as submitted and history created atomically
+    @pytest.mark.django_db
     def test_submit_complaint_calls_db_insert(self):
         from apps.complaints.services import submit_complaint
         citizen = make_mock_profile('citizen')

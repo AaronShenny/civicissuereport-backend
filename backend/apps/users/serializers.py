@@ -108,6 +108,7 @@ class StaffProfileSummarySerializer(serializers.ModelSerializer):
 class EmployeeCreateSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
+    password = serializers.CharField(max_length=128, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
     role_id = serializers.IntegerField()
     department_id = serializers.UUIDField(required=False, allow_null=True)

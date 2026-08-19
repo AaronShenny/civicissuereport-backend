@@ -48,8 +48,8 @@ export default function Login() {
       <div className="login-card">
         {/* Logo */}
         <div className="login-logo">
-          <div className="login-logo-mark">A</div>
-          <span className="login-logo-text">AssetFlow</span>
+          <div className="login-logo-mark" style={{ background: 'var(--primary)', color: 'var(--surface)' }}>J</div>
+          <span className="login-logo-text">JanaSeva</span>
         </div>
 
         {/* Heading */}

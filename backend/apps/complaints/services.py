@@ -26,6 +26,7 @@ import uuid
 import logging
 from datetime import datetime, timezone
 
+from django.conf import settings
 from django.db import transaction, connection
 
 from apps.complaints.models import (
@@ -267,18 +268,20 @@ def _create_complaint_in_db(
         )
 
         # Attachment rows (files uploaded after commit)
+        supabase_url = getattr(settings, 'SUPABASE_URL', '')
         for storage_path, file_type, mime_type in attachment_paths:
             att_id = uuid.uuid4()
+            file_url = f"{supabase_url}/storage/v1/object/public/complaint-media/{storage_path}" if supabase_url else None
             cursor.execute(
                 """
                 INSERT INTO complaint_attachments (
-                    id, complaint_id, file_path, file_type, mime_type,
+                    id, complaint_id, file_path, file_url, file_type, mime_type,
                     purpose, uploaded_by, uploaded_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 [
                     str(att_id), str(complaint_id),
-                    storage_path, file_type, mime_type,
+                    storage_path, file_url, file_type, mime_type,
                     AttachmentPurpose.SUBMISSION_EVIDENCE, str(citizen.id), now,
                 ],
             )
@@ -364,16 +367,22 @@ def submit_complaint(
         return complaint
 
     # Phase 8: Trigger AI severity assessment in background.
-    # The thread runs independently of this HTTP request.
-    # Failure in the AI thread does NOT affect the complaint or this response.
     try:
         from apps.complaints.ai.service import run_severity_assessment_in_background
         run_severity_assessment_in_background(str(complaint.id))
     except Exception as exc:
-        # Importing or launching the thread failed — log and continue.
-        # The complaint is already committed and safe.
         logger.error(
             'Failed to launch AI severity assessment thread for complaint %s: %s',
+            complaint.complaint_number, exc,
+        )
+
+    # Automatically route complaint to responsible department based on category and district
+    try:
+        from apps.complaints.routing import route_complaint
+        route_complaint(complaint)
+    except Exception as exc:
+        logger.warning(
+            'Automated routing skipped or failed for complaint %s: %s',
             complaint.complaint_number, exc,
         )
 

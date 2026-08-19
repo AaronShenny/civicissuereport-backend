@@ -138,6 +138,7 @@ export default function DepartmentComplaints() {
                 <tr>
                   <th>Complaint ID</th>
                   <th>Category</th>
+                  <th>Department</th>
                   <th>District</th>
                   <th>Priority</th>
                   <th>Status</th>
@@ -155,6 +156,7 @@ export default function DepartmentComplaints() {
                       </span>
                     </td>
                     <td><strong>{c.category_name}</strong></td>
+                    <td>{c.department_name || <span style={{ color: 'var(--text-muted)' }}>Unassigned</span>}</td>
                     <td>{c.district || 'N/A'}</td>
                     <td><PriorityBadge priority={c.priority_category} /></td>
                     <td><StatusBadge status={c.status} /></td>

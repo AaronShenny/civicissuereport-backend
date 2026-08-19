@@ -108,7 +108,7 @@ class SupervisorComplaintListSerializer(serializers.ModelSerializer):
             'id', 'complaint_number', 'category_name',
             'status', 'assigned_department_id', 'department_name',
             'assigned_employee_id', 'assigned_employee_name',
-            'location_address', 'location_lat', 'location_lng',
+            'location_address', 'district', 'location_lat', 'location_lng',
             'submitted_at', 'updated_at', 'priority_category',
         ]
 

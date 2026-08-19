@@ -245,23 +245,27 @@ export default function ComplaintDetail() {
             <div className="card">
               <p className="section-title">Attachments</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-sm)' }}>
-                {complaint.attachments.map(att => (
-                  <a 
-                    key={att.id} 
-                    href={att.file_url} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    style={{ 
-                      display: 'flex', alignItems: 'center', padding: 'var(--sp-sm)', 
-                      background: 'var(--bg-default)', borderRadius: 'var(--radius)',
-                      textDecoration: 'none', color: 'var(--text)' 
-                    }}
-                  >
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {att.file_url.split('/').pop()}
-                    </span>
-                  </a>
-                ))}
+                {complaint.attachments.map(att => {
+                  const targetUrl = att.file_url || (att.file_path ? `https://eucpbycjwfbaxzutwpoe.supabase.co/storage/v1/object/public/complaint-media/${att.file_path}` : '#');
+                  const fileName = (att.file_path || att.file_url || 'Attachment').split('/').pop();
+                  return (
+                    <a 
+                      key={att.id} 
+                      href={targetUrl} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      style={{ 
+                        display: 'flex', alignItems: 'center', padding: 'var(--sp-sm)', 
+                        background: 'var(--bg-default)', borderRadius: 'var(--radius)',
+                        textDecoration: 'none', color: 'var(--text)' 
+                      }}
+                    >
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        📎 {fileName}
+                      </span>
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}

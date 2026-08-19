@@ -69,7 +69,7 @@ export default function AdminUsers() {
     try {
       await api.post('/users/employees/', addForm);
       setShowAddModal(false);
-      setAddForm({ full_name: '', email: '', role_id: '', department_id: '', jurisdiction_id: '' });
+      setAddForm({ full_name: '', email: '', password: '', role_id: '', department_id: '', jurisdiction_id: '' });
       if (addForm.department_id === selectedDept) fetchUsers();
     } catch (err) {
       setFormError(err.message || 'Failed to create employee');
@@ -205,6 +205,10 @@ export default function AdminUsers() {
                 <div className="form-group">
                   <label className="form-label">Email</label>
                   <input type="email" className="form-control" required value={addForm.email} onChange={e => setAddForm({...addForm, email: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Password (Optional for Demo)</label>
+                  <input type="password" className="form-control" placeholder="Leave empty for auto-generated" value={addForm.password || ''} onChange={e => setAddForm({...addForm, password: e.target.value})} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Role</label>
