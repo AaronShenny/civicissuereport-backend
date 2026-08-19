@@ -16,6 +16,7 @@ urlpatterns = [
     path('admin/audit-logs/', AuditLogListView.as_view(), name='admin-audit-logs'),
     path('admin/reports/analytics/', complaint_views.AdminAnalyticsView.as_view(), name='admin-reports-analytics'),
     path('admin/reports/export/', complaint_views.AdminExportView.as_view(), name='admin-reports-export'),
+    path('admin/analytics/dashboard/', complaint_views.DashboardAnalyticsView.as_view(), name='admin-analytics-dashboard'),
 
     # Supervisor queues and assignment actions
     path('supervisor/complaints/unassigned/', complaint_views.SupervisorUnassignedQueueView.as_view(), name='supervisor-unassigned-queue'),

@@ -785,7 +785,7 @@ class PublicComplaintTrackingView(APIView):
 # Reporting & Analytics Views (Phase 13)
 # ---------------------------------------------------------------------------
 
-from core.permissions.roles import IsDepartmentAdminOrSystemAdmin
+from core.permissions.roles import IsDepartmentAdminOrSystemAdmin, IsSupervisorOrAbove
 from apps.complaints.reporting import get_filtered_complaints_queryset, get_analytics_data, generate_excel_report, generate_pdf_report
 from django.http import HttpResponse
 
@@ -839,3 +839,22 @@ class AdminExportView(APIView):
             response = HttpResponse(file_data, content_type='application/pdf')
             response['Content-Disposition'] = 'attachment; filename="civic_report.pdf"'
             return response
+
+
+class DashboardAnalyticsView(APIView):
+    """
+    GET /api/v1/admin/analytics/dashboard/
+    Dedicated endpoint for the frontend dashboard pages, fetching real-time KPIs.
+    """
+    permission_classes = [IsAuthenticatedViaSupabase, IsSupervisorOrAbove]
+
+    def get(self, request):
+        profile = getattr(request.user, 'profile', None)
+        if not profile:
+            return Response({'detail': 'Profile not found.'}, status=status.HTTP_403_FORBIDDEN)
+
+        from apps.complaints.analytics import get_dashboard_analytics
+        filters = request.query_params
+        data = get_dashboard_analytics(profile, filters)
+
+        return Response(data, status=status.HTTP_200_OK)
